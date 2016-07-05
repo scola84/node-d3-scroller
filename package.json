@@ -1,0 +1,23 @@
+{
+  "name": "@scola/d3-scroller",
+  "version": "0.0.0",
+  "description": "Scroller",
+  "repository": "github:scola84/node-d3-scroller",
+  "author": "M.C. van den Boogaart <scola@kvdb.name>",
+  "license": "MIT",
+  "main": "./dist/d3-scroller.js",
+  "jsnext:main": "index.js",
+  "devDependencies": {
+    "babel-preset-es2015-rollup": "^1.1.1",
+    "rollup": "^0.26.3",
+    "rollup-plugin-babel": "^2.4.0",
+    "uglify-js": "^2.6.2"
+  },
+  "scripts": {
+    "build": "rollup -c -n d3 -o dist/d3-scroller.js",
+    "build:min": "uglifyjs dist/d3-scroller.js -c -m -o dist/d3-scroller.min.js"
+  },
+  "dependencies": {
+    "lodash-es": "^4.13.1"
+  }
+}
