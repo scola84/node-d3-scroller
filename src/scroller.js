@@ -24,6 +24,11 @@ export default class Scroller {
     this._data = [];
     this._groups = [];
 
+    this._filterActive = false;
+    this._stashData = null;
+    this._stashGroups = null;
+    this._stashTotal = null;
+
     this._header = null;
     this._item = null;
     this._load = null;
@@ -36,6 +41,7 @@ export default class Scroller {
       .remove()
       .classed('scola scroller', true)
       .styles({
+        'display': 'flex',
         'flex': 1,
         'overflow': 'auto',
         'position': 'relative',
@@ -123,8 +129,6 @@ export default class Scroller {
   }
 
   clear() {
-    this._data = [];
-
     this._items.forEach((item) => {
       item.destroy();
     });
@@ -133,8 +137,13 @@ export default class Scroller {
     this._headers.forEach((header) => {
       header.destroy();
     });
-    this._headers.destroy();
+    this._headers.clear();
 
+    return this;
+  }
+
+  empty(empty) {
+    this._empty = empty;
     return this;
   }
 
@@ -148,6 +157,59 @@ export default class Scroller {
     });
 
     this.total(total);
+
+    return this;
+  }
+
+  filter(filter) {
+    if (typeof filter === 'function') {
+      this._filter = filter;
+      return this;
+    }
+
+    this.clear();
+
+    if (filter === false) {
+      if (this._stashTotal) {
+        this._groups = this._stashGroups;
+        this._stashGroups = null;
+
+        this.total(this._stashTotal);
+        this._stashTotal = null;
+
+        this._data = this._stashData;
+        this._stashData = null;
+      }
+
+      if (this._offset <= 0) {
+        this._handleScroll();
+      } else if (this.columns) {
+        this._root.node().scrollTop = 0;
+      } else {
+        this._root.node().scrollLeft = 0;
+      }
+
+      return this;
+    }
+
+    this._filterActive = true;
+
+    if (this._stashTotal === null) {
+      this._stashData = this._data;
+      this._stashGroups = this._groups;
+      this._stashTotal = this._total;
+    }
+
+    this._data = this._data.filter(this._filter.bind(null, filter));
+    this._groups = [];
+
+    if (this._offset <= 0) {
+      this._handleScroll(false);
+    } else if (this.columns) {
+      this._root.node().scrollTop = 0;
+    } else {
+      this._root.node().scrollLeft = 0;
+    }
 
     return this;
   }
@@ -182,6 +244,16 @@ export default class Scroller {
   }
 
   render(range) {
+    if (this._data.length === 0) {
+      if (!this._emptyItem) {
+        this._emptyItem = this._empty();
+        this._root.node().appendChild(this._emptyItem.node());
+      }
+    } else if (this._emptyItem) {
+      this._emptyItem.remove();
+      this._emptyItem = null;
+    }
+
     for (let i = range[0]; i <= range[1]; i += 1) {
       const datum = this._data[i];
 
@@ -307,8 +379,8 @@ export default class Scroller {
     }
 
     const items = new Map(this._items);
-    const load = [];
-    const render = [];
+    const loadItems = [];
+    const renderItems = [];
 
     let i = this._offset - this._extra;
     const max = this._offset + this._limit + this._extra;
@@ -317,10 +389,10 @@ export default class Scroller {
       if (i < 0 || i >= this._total) {
         continue;
       } else if (typeof this._data[i] === 'undefined') {
-        load.push(i);
+        loadItems.push(i);
         continue;
       } else {
-        render.push(i);
+        renderItems.push(i);
         items.delete(this._data[i]);
       }
     }
@@ -335,10 +407,12 @@ export default class Scroller {
       this._headers.delete(group);
     });
 
-    this.render(this._range(render));
+    this.render(this._range(renderItems));
 
-    if (load.length > 0) {
-      this._load(this._range(load), this.load.bind(this));
+    if (this._filterActive) {
+      this._filterActive = false;
+    } else if (loadItems.length > 0) {
+      this._load(this._range(loadItems), this.load.bind(this));
     }
   }
 
@@ -395,6 +469,6 @@ export default class Scroller {
   }
 
   _range(numbers) {
-    return [numbers.shift(), numbers.pop()];
+    return [numbers[0], numbers[numbers.length - 1]];
   }
 }
