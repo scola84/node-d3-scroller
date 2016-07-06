@@ -9,17 +9,23 @@ export default class Scroller {
     this._extraBase = 1;
     this._extra = 1;
 
+    this._empty = null;
+    this._header = null;
+    this._item = null;
+    this._load = null;
+
+    this._rootHeight = 0;
+    this._rootWidth = 0;
+
     this._headerHeight = 0;
     this._headerWidth = 0;
 
     this._itemHeight = 0;
     this._itemWidth = 0;
 
-    this._rootHeight = 0;
-    this._rootWidth = 0;
-
     this._offset = 0;
     this._limit = 0;
+    this._total = 0;
 
     this._data = [];
     this._groups = [];
@@ -29,10 +35,7 @@ export default class Scroller {
     this._stashGroups = null;
     this._stashTotal = null;
 
-    this._header = null;
-    this._item = null;
-    this._load = null;
-
+    this._emptyItem = null;
     this._items = new Map();
     this._headers = new Map();
 
@@ -71,16 +74,6 @@ export default class Scroller {
     return this._root;
   }
 
-  header(header) {
-    this._header = header;
-    return this;
-  }
-
-  item(item) {
-    this._item = item;
-    return this;
-  }
-
   columns(columns) {
     this._columns = columns;
     this._extra = this._extraBase * columns;
@@ -90,6 +83,21 @@ export default class Scroller {
   rows(rows) {
     this._rows = rows;
     this._extra = this._extraBase * rows;
+    return this;
+  }
+
+  empty(empty) {
+    this._empty = empty;
+    return this;
+  }
+
+  header(header) {
+    this._header = header;
+    return this;
+  }
+
+  item(item) {
+    this._item = item;
     return this;
   }
 
@@ -139,11 +147,6 @@ export default class Scroller {
     });
     this._headers.clear();
 
-    return this;
-  }
-
-  empty(empty) {
-    this._empty = empty;
     return this;
   }
 
@@ -247,10 +250,10 @@ export default class Scroller {
     if (this._data.length === 0) {
       if (!this._emptyItem) {
         this._emptyItem = this._empty();
-        this._root.node().appendChild(this._emptyItem.node());
+        this._root.node().appendChild(this._emptyItem.root().node());
       }
     } else if (this._emptyItem) {
-      this._emptyItem.remove();
+      this._emptyItem.destroy();
       this._emptyItem = null;
     }
 
@@ -277,7 +280,6 @@ export default class Scroller {
       } else {
         item = this._item(datum, i);
         this._items.set(datum, item);
-        this._rootNode.appendChild(item.root().node());
       }
 
       if (this._columns) {
@@ -322,7 +324,8 @@ export default class Scroller {
           item.top();
 
           header.root().styles({
-            top: top - 32,
+            'position': 'absolute',
+            'top': top - 32,
             width
           });
         } else if (this._rows) {
@@ -330,7 +333,8 @@ export default class Scroller {
 
           header.root().styles({
             height,
-            left: left - 32
+            'left': left - 32,
+            'position': 'absolute'
           });
         }
 
@@ -341,6 +345,8 @@ export default class Scroller {
       } else if (this._rows && i < this._rows) {
         item.left();
       }
+
+      this._rootNode.appendChild(item.root().node());
     }
   }
 
