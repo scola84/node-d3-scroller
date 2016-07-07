@@ -17,11 +17,11 @@ export default class Scroller {
     this._rootHeight = 0;
     this._rootWidth = 0;
 
-    this._headerHeight = 0;
-    this._headerWidth = 0;
+    this._headerHeight = 32;
+    this._headerWidth = 32;
 
-    this._itemHeight = 0;
-    this._itemWidth = 0;
+    this._itemHeight = 48;
+    this._itemWidth = 48;
 
     this._offset = 0;
     this._limit = 0;
@@ -75,18 +75,32 @@ export default class Scroller {
   }
 
   columns(columns) {
+    if (typeof columns === 'undefined') {
+      return this._columns;
+    }
+
     this._columns = columns;
     this._extra = this._extraBase * columns;
+
     return this;
   }
 
   rows(rows) {
+    if (typeof rows === 'undefined') {
+      return this._rows;
+    }
+
     this._rows = rows;
     this._extra = this._extraBase * rows;
+
     return this;
   }
 
   extra(extra) {
+    if (typeof extra === 'undefined') {
+      return this._extraBase;
+    }
+
     this._extraBase = extra;
     return this;
   }
@@ -106,31 +120,43 @@ export default class Scroller {
     return this;
   }
 
-  height(itemHeight = '3em', headerHeight = '2em') {
+  height(itemHeight, headerHeight) {
+    if (typeof itemHeight === 'undefined') {
+      return [this._itemHeight, this._headerHeight];
+    }
+
     const calculator = select('body').append('div');
 
     this._itemHeight = parseFloat(calculator
       .style('height', itemHeight)
       .style('height'));
 
-    this._headerHeight = parseFloat(calculator
-      .style('height', headerHeight)
-      .style('height'));
+    if (headerHeight) {
+      this._headerHeight = parseFloat(calculator
+        .style('height', headerHeight)
+        .style('height'));
+    }
 
     calculator.remove();
     return this;
   }
 
-  width(itemWidth = '3em', headerWidth = '2em') {
+  width(itemWidth, headerWidth) {
+    if (typeof itemWidth === 'undefined') {
+      return [this._itemWidth, this._headerWidth];
+    }
+
     const calculator = select('body').append('div');
 
     this._itemWidth = parseFloat(calculator
       .style('height', itemWidth)
       .style('height'));
 
-    this._headerWidth = parseFloat(calculator
-      .style('height', headerWidth)
-      .style('height'));
+    if (headerWidth) {
+      this._headerWidth = parseFloat(calculator
+        .style('height', headerWidth)
+        .style('height'));
+    }
 
     calculator.remove();
     return this;
