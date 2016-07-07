@@ -13,6 +13,7 @@ export default class Scroller {
     this._header = null;
     this._item = null;
     this._load = null;
+    this._scroll = null;
 
     this._rootHeight = 0;
     this._rootWidth = 0;
@@ -74,6 +75,10 @@ export default class Scroller {
     return this._root;
   }
 
+  items() {
+    return this._items;
+  }
+
   columns(columns) {
     if (typeof columns === 'undefined') {
       return this._columns;
@@ -105,6 +110,22 @@ export default class Scroller {
     return this;
   }
 
+  offset(offset) {
+    if (typeof offset === 'undefined') {
+      return this._offset;
+    }
+
+    this._offset = offset;
+
+    if (this._columns) {
+      this._rootNode.scrollTop = this._scrollTop(offset);
+    } else if (this._rows) {
+      this._rootNode.scrollLeft = this._scrollLeft(offset);
+    }
+
+    return this;
+  }
+
   empty(empty) {
     this._empty = empty;
     return this;
@@ -117,6 +138,11 @@ export default class Scroller {
 
   item(item) {
     this._item = item;
+    return this;
+  }
+
+  scroll(scroll) {
+    this._scroll = scroll;
     return this;
   }
 
@@ -162,8 +188,8 @@ export default class Scroller {
     return this;
   }
 
-  start() {
-    setTimeout(() => this._handleResize());
+  start(callback) {
+    this._handleResize(callback);
     return this;
   }
 
@@ -203,7 +229,7 @@ export default class Scroller {
 
     this.clear();
 
-    if (filter === false) {
+    if (filter === null) {
       if (this._stashTotal) {
         this._groups = this._stashGroups;
         this._stashGroups = null;
@@ -238,7 +264,7 @@ export default class Scroller {
     this._groups = [];
 
     if (this._offset <= 0) {
-      this._handleScroll(false);
+      this._handleScroll();
     } else if (this.columns) {
       this._root.node().scrollTop = 0;
     } else {
@@ -266,11 +292,11 @@ export default class Scroller {
 
     if (this._columns) {
       let top = this._total / this._columns * this._itemHeight;
-      top += this._groups.length * 32;
+      top += this._groups.length * this._headerHeight;
       this._spanner.style('top', top);
     } else if (this._rows) {
       let left = this._total / this._rows * this._itemWidth;
-      left += this._groups.length * 32;
+      left += this._groups.length * this._headerWidth;
       this._spanner.style('left', left);
     }
 
@@ -356,7 +382,7 @@ export default class Scroller {
 
           header.root().styles({
             'position': 'absolute',
-            'top': top - 32,
+            'top': top - this._headerHeight,
             width
           });
         } else if (this._rows) {
@@ -364,7 +390,7 @@ export default class Scroller {
 
           header.root().styles({
             height,
-            'left': left - 32,
+            'left': left - this._headerWidth,
             'position': 'absolute'
           });
         }
@@ -393,7 +419,7 @@ export default class Scroller {
     this._root.on('scroll', null);
   }
 
-  _handleResize() {
+  _handleResize(callback) {
     this._rootHeight = parseFloat(this._root.style('height'));
     this._rootWidth = parseFloat(this._root.style('width'));
 
@@ -405,10 +431,10 @@ export default class Scroller {
         this._rows;
     }
 
-    this._handleScroll();
+    this._handleScroll(callback);
   }
 
-  _handleScroll() {
+  _handleScroll(callback) {
     if (this._columns) {
       this._offset = this._offsetTop(this._rootNode.scrollTop);
     } else if (this._rows) {
@@ -449,11 +475,24 @@ export default class Scroller {
     if (this._filterActive) {
       this._filterActive = false;
     } else if (loadItems.length > 0) {
-      this._load(this._range(loadItems), this.load.bind(this));
+      this._load(this._range(loadItems), (range, data) => {
+        this.load(range, data);
+        this._handleScrollEnd(callback);
+      });
+    } else {
+      this._handleScrollEnd(callback);
     }
   }
 
-  _offsetTop(offset) {
+  _handleScrollEnd(callback) {
+    if (callback) {
+      callback();
+    } else if (this._scroll) {
+      this._scroll();
+    }
+  }
+
+  _offsetTop(scroll) {
     let top = 0;
     let bottom = 0;
 
@@ -463,17 +502,17 @@ export default class Scroller {
       bottom = ((this._groups[i].range[1] + 1) * this._itemHeight) +
         ((i + 1) * this._headerHeight);
 
-      if (offset >= top && offset <= bottom) {
-        return this._groups[i].range[0] +
-          Math.floor((offset - top - this._headerHeight) /
-            this._itemHeight);
+      if (scroll >= top && scroll <= bottom) {
+        return Math.max(0, this._groups[i].range[0] +
+          Math.round((scroll - top - this._headerHeight) /
+            this._itemHeight));
       }
     }
 
-    return Math.floor(offset / this._itemHeight) * this._columns;
+    return Math.round(scroll / this._itemHeight) * this._columns;
   }
 
-  _offsetLeft(offset) {
+  _offsetLeft(scroll) {
     let left = 0;
     let right = 0;
 
@@ -483,14 +522,66 @@ export default class Scroller {
       right = ((this._groups[i].range[1] + 1) * this._itemWidth) +
         ((i + 1) * this._headerWidth);
 
-      if (offset >= left && offset <= right) {
+      if (scroll >= left && scroll <= right) {
         return this._groups[i].range[0] +
-          Math.floor((offset - left - this._headerWidth) /
+          Math.floor((scroll - left - this._headerWidth) /
             this._itemWidth);
       }
     }
 
-    return Math.floor(offset / this._itemWidth) * this._rows;
+    return Math.floor(scroll / this._itemWidth) * this._rows;
+  }
+
+  _scrollTop(offset) {
+    let top = 0;
+
+    for (let i = 0; i < this._groups.length; i += 1) {
+      top = (this._groups[i].range[0] * this._itemHeight) +
+        (i * this._headerHeight);
+
+      if (offset >= this._groups[i].range[0] &&
+        offset <= this._groups[i].range[1]) {
+
+        if (offset > 0) {
+          top += ((offset - this._groups[i].range[0]) *
+            this._itemHeight) + this._headerHeight;
+        }
+
+        if (offset !== this._groups[i].range[0]) {
+          top += 1;
+        }
+
+        return top;
+      }
+    }
+
+    return (offset * this._itemHeight) + (offset === 0 ? 0 : 1);
+  }
+
+  _scrollLeft(offset) {
+    let left = 0;
+
+    for (let i = 0; i < this._groups.length; i += 1) {
+      left = (this._groups[i].range[0] * this._itemWidth) +
+        (i * this._headerWidth);
+
+      if (offset >= this._groups[i].range[0] &&
+        offset <= this._groups[i].range[1]) {
+
+        if (offset > 0) {
+          left += ((offset - this._groups[i].range[0]) *
+            this._itemWidth) + this._headerWidth;
+        }
+
+        if (offset !== this._groups[i].range[0]) {
+          left += 1;
+        }
+
+        return left;
+      }
+    }
+
+    return (offset * this._itemWidth) + (offset === 0 ? 0 : 1);
   }
 
   _group(index) {
