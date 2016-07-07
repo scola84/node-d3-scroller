@@ -86,6 +86,11 @@ export default class Scroller {
     return this;
   }
 
+  extra(extra) {
+    this._extraBase = extra;
+    return this;
+  }
+
   empty(empty) {
     this._empty = empty;
     return this;
