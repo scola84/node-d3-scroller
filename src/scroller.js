@@ -304,17 +304,22 @@ export default class Scroller {
 
   total(total) {
     this._total = total;
+    let name = '';
+    let value = 0;
 
     if (this._columns) {
-      let top = this._total / this._columns * this._itemHeight;
-      top += this._groups.length * this._headerHeight;
-      this._spanner.style('top', top);
+      name = 'top';
+      value = (this._total / this._columns * this._itemHeight) +
+        this._groups.length * this._headerHeight -
+        1;
     } else if (this._rows) {
-      let left = this._total / this._rows * this._itemWidth;
-      left += this._groups.length * this._headerWidth;
-      this._spanner.style('left', left);
+      name = 'left';
+      value = this._total / this._rows * this._itemWidth +
+        this._groups.length * this._headerWidth -
+        1;
     }
 
+    this._spanner.style(name, value);
     return this;
   }
 
@@ -352,6 +357,15 @@ export default class Scroller {
       } else {
         item = this._item(datum, i);
         this._items.set(datum, item);
+
+        const next = this._find(i);
+
+        if (next) {
+          this._rootNode.insertBefore(item.root().node(),
+            next.root().node());
+        } else {
+          this._rootNode.appendChild(item.root().node());
+        }
       }
 
       if (this._columns) {
@@ -385,7 +399,8 @@ export default class Scroller {
           height,
           left,
           'position': 'absolute',
-          top
+          top,
+          width: this._itemWidth
         });
       }
 
@@ -411,14 +426,13 @@ export default class Scroller {
         }
 
         this._headers.set(this._groups[groupIndex], header);
-        this._rootNode.appendChild(header.root().node());
+        this._rootNode.insertBefore(header.root().node(),
+          item.root().node());
       } else if (this._columns && i < this._columns) {
         item.top();
       } else if (this._rows && i < this._rows) {
         item.left();
       }
-
-      this._rootNode.appendChild(item.root().node());
     }
   }
 
@@ -590,6 +604,18 @@ export default class Scroller {
     }
 
     return (offset * this._itemWidth) + (offset === 0 ? 0 : 1);
+  }
+
+  _find(index) {
+    index += 1;
+
+    for (; index < this._total; index += 1) {
+      if (this._items.has(this._data[index])) {
+        return this._items.get(this._data[index]);
+      }
+    }
+
+    return null;
   }
 
   _group(index) {
