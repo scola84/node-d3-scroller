@@ -28,10 +28,9 @@ export default class Scroller {
     this._limit = 0;
     this._total = 0;
 
-    this._data = [];
+    this._data = {};
     this._groups = [];
 
-    this._filterActive = false;
     this._stashData = null;
     this._stashGroups = null;
     this._stashTotal = null;
@@ -188,8 +187,8 @@ export default class Scroller {
     return this;
   }
 
-  start(callback) {
-    this._handleResize(callback);
+  start() {
+    this._handleResize();
     return this;
   }
 
@@ -197,11 +196,12 @@ export default class Scroller {
     this._items.forEach((item) => {
       item.destroy();
     });
-    this._items.clear();
 
     this._headers.forEach((header) => {
       header.destroy();
     });
+
+    this._items.clear();
     this._headers.clear();
 
     return this;
@@ -252,15 +252,25 @@ export default class Scroller {
       return this;
     }
 
-    this._filterActive = true;
-
     if (this._stashTotal === null) {
       this._stashData = this._data;
       this._stashGroups = this._groups;
       this._stashTotal = this._total;
     }
 
-    this._data = this._data.filter(this._filter.bind(null, filter));
+    const data = {};
+    let index = 0;
+
+    Object.keys(this._data).forEach((key) => {
+      if (this._filter(filter, this._data[key]) === false) {
+        delete this._data[key];
+      } else {
+        data[index] = this._data[key];
+        index += 1;
+      }
+    });
+
+    this._data = data;
     this._groups = [];
 
     if (this._offset <= 0) {
@@ -280,7 +290,13 @@ export default class Scroller {
       return this;
     }
 
-    this._data.splice(range[0], data.length, ...data);
+    let index = range[0];
+
+    data.forEach((datum) => {
+      this._data[index] = datum;
+      index += 1;
+    });
+
     this.render(range);
 
     return this;
@@ -288,7 +304,6 @@ export default class Scroller {
 
   total(total) {
     this._total = total;
-    this._data = new Array(total);
 
     if (this._columns) {
       let top = this._total / this._columns * this._itemHeight;
@@ -304,7 +319,7 @@ export default class Scroller {
   }
 
   render(range) {
-    if (this._data.length === 0) {
+    if (Object.keys(this._data).length === 0) {
       if (!this._emptyItem) {
         this._emptyItem = this._empty();
         this._root.node().appendChild(this._emptyItem.root().node());
@@ -419,7 +434,7 @@ export default class Scroller {
     this._root.on('scroll', null);
   }
 
-  _handleResize(callback) {
+  _handleResize() {
     this._rootHeight = parseFloat(this._root.style('height'));
     this._rootWidth = parseFloat(this._root.style('width'));
 
@@ -430,11 +445,9 @@ export default class Scroller {
       this._limit = Math.round(this._rootWidth / this._itemWidth) *
         this._rows;
     }
-
-    this._handleScroll(callback);
   }
 
-  _handleScroll(callback) {
+  _handleScroll() {
     if (this._columns) {
       this._offset = this._offsetTop(this._rootNode.scrollTop);
     } else if (this._rows) {
@@ -445,13 +458,12 @@ export default class Scroller {
     const loadItems = [];
     const renderItems = [];
 
-    let i = this._offset - this._extra;
-    const max = this._offset + this._limit + this._extra;
+    let i = Math.max(0, this._offset - this._extra);
+    const max = Math.min(this._total,
+      this._offset + this._limit + this._extra);
 
     for (; i < max; i += 1) {
-      if (i < 0 || i >= this._total) {
-        continue;
-      } else if (typeof this._data[i] === 'undefined') {
+      if (typeof this._data[i] === 'undefined') {
         loadItems.push(i);
         continue;
       } else {
@@ -472,22 +484,18 @@ export default class Scroller {
 
     this.render(this._range(renderItems));
 
-    if (this._filterActive) {
-      this._filterActive = false;
-    } else if (loadItems.length > 0) {
+    if (loadItems.length > 0) {
       this._load(this._range(loadItems), (range, data) => {
         this.load(range, data);
-        this._handleScrollEnd(callback);
+        this._handleScrollEnd();
       });
     } else {
-      this._handleScrollEnd(callback);
+      this._handleScrollEnd();
     }
   }
 
-  _handleScrollEnd(callback) {
-    if (callback) {
-      callback();
-    } else if (this._scroll) {
+  _handleScrollEnd() {
+    if (this._scroll) {
       this._scroll();
     }
   }
