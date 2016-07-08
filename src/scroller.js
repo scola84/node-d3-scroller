@@ -24,6 +24,7 @@ export default class Scroller {
     this._itemHeight = 48;
     this._itemWidth = 48;
 
+    this._direction = 1;
     this._offset = 0;
     this._limit = 0;
     this._total = 0;
@@ -145,6 +146,14 @@ export default class Scroller {
     return this;
   }
 
+  direction(direction) {
+    this._root.attr('dir', direction);
+    this._direction = direction === 'rtl' ? -1 : 1;
+    this._span();
+
+    return this;
+  }
+
   height(itemHeight, headerHeight) {
     if (typeof itemHeight === 'undefined') {
       return [this._itemHeight, this._headerHeight];
@@ -217,6 +226,12 @@ export default class Scroller {
     });
 
     this.total(total);
+    return this;
+  }
+
+  total(total) {
+    this._total = total;
+    this._span();
 
     return this;
   }
@@ -243,10 +258,10 @@ export default class Scroller {
 
       if (this._offset <= 0) {
         this._handleScroll();
-      } else if (this.columns) {
+      } else if (this._columns) {
         this._root.node().scrollTop = 0;
-      } else {
-        this._root.node().scrollLeft = 0;
+      } else if (this._rows) {
+        this._root.node().scrollLeft = this._normalize(0);
       }
 
       return this;
@@ -275,10 +290,10 @@ export default class Scroller {
 
     if (this._offset <= 0) {
       this._handleScroll();
-    } else if (this.columns) {
+    } else if (this._columns) {
       this._root.node().scrollTop = 0;
-    } else {
-      this._root.node().scrollLeft = 0;
+    } else if (this._rows) {
+      this._root.node().scrollLeft = this._normalize(0);
     }
 
     return this;
@@ -298,28 +313,6 @@ export default class Scroller {
     });
 
     this.render(range);
-
-    return this;
-  }
-
-  total(total) {
-    this._total = total;
-    let name = '';
-    let value = 0;
-
-    if (this._columns) {
-      name = 'top';
-      value = (this._total / this._columns * this._itemHeight) +
-        this._groups.length * this._headerHeight -
-        1;
-    } else if (this._rows) {
-      name = 'left';
-      value = this._total / this._rows * this._itemWidth +
-        this._groups.length * this._headerWidth -
-        1;
-    }
-
-    this._spanner.style(name, value);
     return this;
   }
 
@@ -342,6 +335,7 @@ export default class Scroller {
       }
 
       const groupIndex = this._group(i);
+      const style = this._direction === -1 ? 'right' : 'left';
 
       let header = null;
       let item = null;
@@ -397,7 +391,7 @@ export default class Scroller {
 
         item.root().styles({
           height,
-          left,
+          [style]: left,
           'position': 'absolute',
           top,
           width: this._itemWidth
@@ -420,7 +414,7 @@ export default class Scroller {
 
           header.root().styles({
             height,
-            'left': left - this._headerWidth,
+            [style]: left - this._headerWidth,
             'position': 'absolute'
           });
         }
@@ -459,6 +453,8 @@ export default class Scroller {
       this._limit = Math.round(this._rootWidth / this._itemWidth) *
         this._rows;
     }
+
+    this._handleScroll();
   }
 
   _handleScroll() {
@@ -535,6 +531,8 @@ export default class Scroller {
   }
 
   _offsetLeft(scroll) {
+    scroll = this._normalize(scroll);
+
     let left = 0;
     let right = 0;
 
@@ -545,13 +543,13 @@ export default class Scroller {
         ((i + 1) * this._headerWidth);
 
       if (scroll >= left && scroll <= right) {
-        return this._groups[i].range[0] +
-          Math.floor((scroll - left - this._headerWidth) /
-            this._itemWidth);
+        return Math.max(0, this._groups[i].range[0] +
+          Math.round((scroll - left - this._headerWidth) /
+            this._itemWidth));
       }
     }
 
-    return Math.floor(scroll / this._itemWidth) * this._rows;
+    return Math.round(scroll / this._itemWidth) * this._rows;
   }
 
   _scrollTop(offset) {
@@ -599,11 +597,37 @@ export default class Scroller {
           left += 1;
         }
 
-        return left;
+        break;
       }
     }
 
-    return (offset * this._itemWidth) + (offset === 0 ? 0 : 1);
+    if (left === 0) {
+      left = (offset * this._itemWidth) + (offset === 0 ? 0 : 1);
+    }
+
+    return this._normalize(left);
+  }
+
+  _span() {
+    let name = '';
+    let value = 0;
+
+    if (this._columns) {
+      name = 'top';
+      value = (this._total / this._columns * this._itemHeight) +
+        (this._groups.length * this._headerHeight) - 1;
+    } else if (this._rows) {
+      name = 'left';
+      value = this._total / this._rows * this._itemWidth +
+        (this._groups.length * this._headerWidth) - 1;
+
+      if (this._direction === -1) {
+        value -= this._rootNode.offsetWidth;
+        value *= -1;
+      }
+    }
+
+    this._spanner.style(name, value);
   }
 
   _find(index) {
@@ -628,6 +652,15 @@ export default class Scroller {
     }
 
     return -1;
+  }
+
+  _normalize(scroll) {
+    if (this._direction === -1) {
+      return this._rootNode.scrollWidth -
+        this._rootNode.offsetWidth - scroll;
+    }
+
+    return scroll;
   }
 
   _range(numbers) {
