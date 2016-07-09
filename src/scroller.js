@@ -37,7 +37,7 @@ export default class Scroller {
     this._stashGroups = null;
     this._stashTotal = null;
 
-    this._emptyItem = null;
+    this._message = null;
     this._items = new Map();
     this._headers = new Map();
 
@@ -413,13 +413,13 @@ export default class Scroller {
 
   _render(range) {
     if (Object.keys(this._data).length === 0) {
-      if (!this._emptyItem) {
-        this._emptyItem = this._empty();
-        this._root.node().appendChild(this._emptyItem.root().node());
+      if (!this._message) {
+        this._message = this._empty();
+        this._root.node().appendChild(this._message.root().node());
       }
-    } else if (this._emptyItem) {
-      this._emptyItem.destroy();
-      this._emptyItem = null;
+    } else if (this._message) {
+      this._message.destroy();
+      this._message = null;
     }
 
     for (let i = range[0]; i <= range[1]; i += 1) {
