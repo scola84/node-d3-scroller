@@ -9,11 +9,17 @@ export default class Scroller {
     this._extraBase = 1;
     this._extra = 1;
 
+    this._offset = 0;
+    this._limit = 0;
+    this._total = 0;
+
     this._empty = null;
     this._header = null;
     this._item = null;
     this._load = null;
     this._scroll = null;
+
+    this._direction = 1;
 
     this._rootHeight = 0;
     this._rootWidth = 0;
@@ -23,11 +29,6 @@ export default class Scroller {
 
     this._itemHeight = 48;
     this._itemWidth = 48;
-
-    this._direction = 1;
-    this._offset = 0;
-    this._limit = 0;
-    this._total = 0;
 
     this._data = {};
     this._groups = [];
@@ -52,7 +53,7 @@ export default class Scroller {
         '-webkit-overflow-scrolling': 'touch'
       });
 
-    this._spanner = this._root
+    this._span = this._root
       .append('div')
       .styles({
         'height': 1,
@@ -115,13 +116,51 @@ export default class Scroller {
       return this._offset;
     }
 
+    const lastOffset = this._offset;
     this._offset = offset;
 
-    if (this._columns) {
-      this._rootNode.scrollTop = this._scrollTop(offset);
+    if (lastOffset === 0 && offset === 0) {
+      this._handleScroll();
+    } else if (this._columns) {
+      this._root.node().scrollTop = this._scrollTop(offset);
     } else if (this._rows) {
-      this._rootNode.scrollLeft = this._scrollLeft(offset);
+      this._root.node().scrollLeft = this._scrollLeft(offset);
     }
+
+    return this;
+  }
+
+  limit(action) {
+    if (typeof action === 'undefined') {
+      return this._limit;
+    }
+
+    this._rootHeight = parseFloat(this._root.style('height'));
+    this._rootWidth = parseFloat(this._root.style('width'));
+
+    if (this._columns) {
+      this._limit = Math.round(this._rootHeight / this._itemHeight) *
+        this._columns;
+    } else if (this._rows) {
+      this._limit = Math.round(this._rootWidth / this._itemWidth) *
+        this._rows;
+    }
+
+    return this;
+  }
+
+  total(total) {
+    this._total = total;
+    return this;
+  }
+
+  groups(groups) {
+    this._groups = groups;
+    this._total = 0;
+
+    this._groups.forEach((group) => {
+      this._total += group.range[1] - group.range[0] + 1;
+    });
 
     return this;
   }
@@ -149,7 +188,6 @@ export default class Scroller {
   direction(direction) {
     this._root.attr('dir', direction);
     this._direction = direction === 'rtl' ? -1 : 1;
-    this._span();
 
     return this;
   }
@@ -196,11 +234,6 @@ export default class Scroller {
     return this;
   }
 
-  start() {
-    this._handleResize();
-    return this;
-  }
-
   clear() {
     this._items.forEach((item) => {
       item.destroy();
@@ -216,23 +249,30 @@ export default class Scroller {
     return this;
   }
 
-  groups(groups) {
-    this._groups = groups;
+  span(action) {
+    if (typeof action === 'undefined') {
+      return this._span;
+    }
 
-    let total = 0;
+    let name = '';
+    let value = 0;
 
-    this._groups.forEach((group) => {
-      total += group.range[1] - group.range[0] + 1;
-    });
+    if (this._columns) {
+      name = 'top';
+      value = (this._total / this._columns * this._itemHeight) +
+        (this._groups.length * this._headerHeight) - 1;
+    } else if (this._rows) {
+      name = 'left';
+      value = this._total / this._rows * this._itemWidth +
+        (this._groups.length * this._headerWidth) - 1;
 
-    this.total(total);
-    return this;
-  }
+      if (this._direction === -1) {
+        value -= this._rootNode.offsetWidth;
+        value *= -1;
+      }
+    }
 
-  total(total) {
-    this._total = total;
-    this._span();
-
+    this._span.style(name, value);
     return this;
   }
 
@@ -254,14 +294,6 @@ export default class Scroller {
 
         this._data = this._stashData;
         this._stashData = null;
-      }
-
-      if (this._offset <= 0) {
-        this._handleScroll();
-      } else if (this._columns) {
-        this._root.node().scrollTop = 0;
-      } else if (this._rows) {
-        this._root.node().scrollLeft = this._normalize(0);
       }
 
       return this;
@@ -288,14 +320,6 @@ export default class Scroller {
     this._data = data;
     this._groups = [];
 
-    if (this._offset <= 0) {
-      this._handleScroll();
-    } else if (this._columns) {
-      this._root.node().scrollTop = 0;
-    } else if (this._rows) {
-      this._root.node().scrollLeft = this._normalize(0);
-    }
-
     return this;
   }
 
@@ -312,11 +336,82 @@ export default class Scroller {
       index += 1;
     });
 
-    this.render(range);
+    this._render(range);
     return this;
   }
 
-  render(range) {
+  _bind(delay = 25) {
+    select(window).on('resize.scola-scroller',
+      debounce(this._handleResize.bind(this), delay));
+    this._root.on('scroll',
+      debounce(this._handleScroll.bind(this), delay));
+  }
+
+  _unbind() {
+    select(window).on('resize.scola-scroller', null);
+    this._root.on('scroll', null);
+  }
+
+  _handleResize() {
+    this.limit(true);
+    this._handleScroll();
+  }
+
+  _handleScroll() {
+    if (this._columns) {
+      this._offset = this._offsetTop(this._rootNode.scrollTop);
+    } else if (this._rows) {
+      this._offset = this._offsetLeft(this._rootNode.scrollLeft);
+    }
+
+    const items = new Map(this._items);
+    const loadItems = [];
+    const renderItems = [];
+
+    let i = Math.max(0, this._offset - this._extra);
+    const max = Math.min(this._total,
+      this._offset + this._limit + this._extra);
+
+    for (; i < max; i += 1) {
+      if (typeof this._data[i] === 'undefined') {
+        loadItems.push(i);
+        continue;
+      } else {
+        renderItems.push(i);
+        items.delete(this._data[i]);
+      }
+    }
+
+    items.forEach((item, datum) => {
+      item.destroy();
+      this._items.delete(datum);
+    });
+
+    this._headers.forEach((header, group) => {
+      header.destroy();
+      this._headers.delete(group);
+    });
+
+    this._render(this._range(renderItems));
+
+    if (loadItems.length === 0) {
+      if (this._scroll) {
+        this._scroll();
+      }
+
+      return;
+    }
+
+    this._load(this._range(loadItems), (range, data) => {
+      this.load(range, data);
+
+      if (this._scroll) {
+        this._scroll();
+      }
+    });
+  }
+
+  _render(range) {
     if (Object.keys(this._data).length === 0) {
       if (!this._emptyItem) {
         this._emptyItem = this._empty();
@@ -430,86 +525,6 @@ export default class Scroller {
     }
   }
 
-  _bind(delay = 25) {
-    select(window).on('resize.scola-scroller',
-      debounce(this._handleResize.bind(this), delay));
-    this._root.on('scroll',
-      debounce(this._handleScroll.bind(this), delay));
-  }
-
-  _unbind() {
-    select(window).on('resize.scola-scroller', null);
-    this._root.on('scroll', null);
-  }
-
-  _handleResize() {
-    this._rootHeight = parseFloat(this._root.style('height'));
-    this._rootWidth = parseFloat(this._root.style('width'));
-
-    if (this._columns) {
-      this._limit = Math.round(this._rootHeight / this._itemHeight) *
-        this._columns;
-    } else if (this._rows) {
-      this._limit = Math.round(this._rootWidth / this._itemWidth) *
-        this._rows;
-    }
-
-    this._handleScroll();
-  }
-
-  _handleScroll() {
-    if (this._columns) {
-      this._offset = this._offsetTop(this._rootNode.scrollTop);
-    } else if (this._rows) {
-      this._offset = this._offsetLeft(this._rootNode.scrollLeft);
-    }
-
-    const items = new Map(this._items);
-    const loadItems = [];
-    const renderItems = [];
-
-    let i = Math.max(0, this._offset - this._extra);
-    const max = Math.min(this._total,
-      this._offset + this._limit + this._extra);
-
-    for (; i < max; i += 1) {
-      if (typeof this._data[i] === 'undefined') {
-        loadItems.push(i);
-        continue;
-      } else {
-        renderItems.push(i);
-        items.delete(this._data[i]);
-      }
-    }
-
-    items.forEach((item, datum) => {
-      item.destroy();
-      this._items.delete(datum);
-    });
-
-    this._headers.forEach((header, group) => {
-      header.destroy();
-      this._headers.delete(group);
-    });
-
-    this.render(this._range(renderItems));
-
-    if (loadItems.length > 0) {
-      this._load(this._range(loadItems), (range, data) => {
-        this.load(range, data);
-        this._handleScrollEnd();
-      });
-    } else {
-      this._handleScrollEnd();
-    }
-  }
-
-  _handleScrollEnd() {
-    if (this._scroll) {
-      this._scroll();
-    }
-  }
-
   _offsetTop(scroll) {
     let top = 0;
     let bottom = 0;
@@ -606,28 +621,6 @@ export default class Scroller {
     }
 
     return this._normalize(left);
-  }
-
-  _span() {
-    let name = '';
-    let value = 0;
-
-    if (this._columns) {
-      name = 'top';
-      value = (this._total / this._columns * this._itemHeight) +
-        (this._groups.length * this._headerHeight) - 1;
-    } else if (this._rows) {
-      name = 'left';
-      value = this._total / this._rows * this._itemWidth +
-        (this._groups.length * this._headerWidth) - 1;
-
-      if (this._direction === -1) {
-        value -= this._rootNode.offsetWidth;
-        value *= -1;
-      }
-    }
-
-    this._spanner.style(name, value);
   }
 
   _find(index) {
