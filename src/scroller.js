@@ -495,18 +495,15 @@ export default class Scroller {
 
       if (groupIndex !== -1 && this._groups[groupIndex].range[0] === i) {
         header = this._header(this._groups[groupIndex]);
+        item.first();
 
         if (this._columns) {
-          item.top();
-
           header.root().styles({
             'position': 'absolute',
             'top': top - this._headerHeight,
             width
           });
         } else if (this._rows) {
-          item.left();
-
           header.root().styles({
             height,
             [style]: left - this._headerWidth,
@@ -517,10 +514,10 @@ export default class Scroller {
         this._headers.set(this._groups[groupIndex], header);
         this._rootNode.insertBefore(header.root().node(),
           item.root().node());
-      } else if (this._columns && i < this._columns) {
-        item.top();
-      } else if (this._rows && i < this._rows) {
-        item.left();
+      } else if ((this._columns && i < this._columns) ||
+        (this._rows && i < this._rows)) {
+
+        item.first();
       }
     }
   }
