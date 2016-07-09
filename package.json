@@ -7,17 +7,19 @@
   "license": "MIT",
   "main": "./dist/d3-scroller.js",
   "jsnext:main": "index.js",
+  "dependencies": {
+    "lodash-es": "^4.13.1"
+  },
   "devDependencies": {
     "babel-preset-es2015-rollup": "^1.1.1",
     "rollup": "^0.26.3",
     "rollup-plugin-babel": "^2.4.0",
+    "rollup-plugin-commonjs": "^3.1.0",
+    "rollup-plugin-node-resolve": "^1.7.1",
     "uglify-js": "^2.6.2"
   },
   "scripts": {
     "build": "rollup -c -n d3 -o dist/d3-scroller.js",
     "build:min": "uglifyjs dist/d3-scroller.js -c -m -o dist/d3-scroller.min.js"
-  },
-  "dependencies": {
-    "lodash-es": "^4.13.1"
   }
 }
