@@ -57,7 +57,6 @@ export default class Scroller {
       .append('div')
       .classed('scola body', true)
       .styles({
-        'display': 'flex',
         'flex': 1,
         'order': 2,
         'overflow': 'auto',
