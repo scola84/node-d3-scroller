@@ -87,6 +87,10 @@ export default class Scroller {
     return this._root;
   }
 
+  headers() {
+    return this._headers;
+  }
+
   items() {
     return this._items;
   }
