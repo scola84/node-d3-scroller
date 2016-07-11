@@ -510,6 +510,7 @@ export default class Scroller {
 
         if (this._columns) {
           header.root().styles({
+            'left': 0,
             'position': 'absolute',
             'top': top - this._headerHeight,
             width
@@ -518,7 +519,8 @@ export default class Scroller {
           header.root().styles({
             height,
             [style]: left - this._headerWidth,
-            'position': 'absolute'
+            'position': 'absolute',
+            'top': 0
           });
         }
 
