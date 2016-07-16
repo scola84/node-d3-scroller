@@ -15,7 +15,7 @@ export default {
     }),
     commonjs(),
     babel({
-      presets: ['es2015-rollup']
+      // presets: ['es2015-rollup']
     })
   ]
 };
