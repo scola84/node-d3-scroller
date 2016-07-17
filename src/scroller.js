@@ -30,7 +30,7 @@ export default class Scroller {
     this._item = null;
     this._scroll = null;
 
-    this._pages = {};
+    this._pages = new Map();
 
     this._message = null;
     this._headers = new Map();
@@ -266,6 +266,11 @@ export default class Scroller {
   }
 
   clear() {
+    if (this._message) {
+      this._message.destroy();
+      this._message = null;
+    }
+
     this._items.forEach((item) => {
       item.destroy();
     });
@@ -274,6 +279,7 @@ export default class Scroller {
       header.destroy();
     });
 
+    this._pages.clear();
     this._items.clear();
     this._headers.clear();
 
@@ -307,35 +313,35 @@ export default class Scroller {
     const count = this._model.count();
 
     const items = new Map(this._items);
-    const pages = Object.assign({}, this._pages);
+    const pages = new Map(this._pages);
     const loadPages = new Set();
 
     const loadItems = [];
     const renderItems = [];
 
     let i = Math.max(0, this._offset - this._extra);
-    let pageIndex = 0;
-    let datumIndex = 0;
-
     const max = Math.min(this._model.total(),
       this._offset + this._count + this._extra);
+
+    let pageIndex = 0;
+    let datumIndex = 0;
 
     for (; i < max; i += 1) {
       pageIndex = Math.floor(i / count);
       datumIndex = i % count;
 
-      if (typeof this._pages[pageIndex] === 'undefined') {
+      if (pages.has(pageIndex) === false) {
         loadItems.push(i);
         loadPages.add(pageIndex);
       } else {
         renderItems.push(i);
-        items.delete(this._pages[pageIndex][datumIndex]);
-        delete pages[pageIndex];
+        items.delete(pages.get(pageIndex)[datumIndex]);
+        pages.delete(pageIndex);
       }
     }
 
-    Object.keys(pages).forEach((index) => {
-      delete this._pages[index];
+    pages.forEach((page, index) => {
+      this._pages.delete(index);
     });
 
     items.forEach((item, datum) => {
@@ -363,9 +369,9 @@ export default class Scroller {
   _load(pages, items) {
     let loaded = 0;
 
-    pages.forEach((page) => {
-      this._model.page(page).data((data) => {
-        this._pages[page] = data;
+    pages.forEach((index) => {
+      this._model.page(index).data((data) => {
+        this._pages.set(index, data);
         loaded += 1;
 
         if (loaded === pages.size) {
@@ -384,16 +390,20 @@ export default class Scroller {
 
     let pageIndex = 0;
     let datumIndex = 0;
+
+    let page = null;
     let datum = null;
 
     for (let i = range[0]; i <= range[1]; i += 1) {
       pageIndex = Math.floor(i / count);
-      datumIndex = i % count;
-      datum = this._pages[pageIndex] && this._pages[pageIndex][datumIndex];
+      page = this._pages.get(pageIndex);
 
-      if (!datum) {
+      if (typeof page === 'undefined') {
         continue;
       }
+
+      datumIndex = i % count;
+      datum = page[datumIndex];
 
       const groupIndex = this._group(i);
       const style = this._direction === -1 ? 'right' : 'left';
@@ -606,14 +616,23 @@ export default class Scroller {
 
     let pageIndex = 0;
     let datumIndex = 0;
+
+    let page = null;
     let datum = null;
+
 
     for (; index < this._model.total(); index += 1) {
       pageIndex = Math.floor(index / count);
-      datumIndex = index % count;
-      datum = this._pages[pageIndex] && this._pages[pageIndex][datumIndex];
+      page = this._pages.get(pageIndex);
 
-      if (this._items.has(datum)) {
+      if (typeof page === 'undefined') {
+        continue;
+      }
+
+      datumIndex = index % count;
+      datum = page[datumIndex];
+
+      if (this._items.has(datum) === true) {
         return this._items.get(datum);
       }
     }
