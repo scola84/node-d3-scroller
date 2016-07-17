@@ -23,7 +23,7 @@ export default class Scroller {
     this._direction = 1;
 
     this._offset = 0;
-    this._limit = 0;
+    this._count = 0;
 
     this._empty = null;
     this._header = null;
@@ -219,19 +219,19 @@ export default class Scroller {
     return this;
   }
 
-  limit(action) {
+  count(action) {
     if (typeof action === 'undefined') {
-      return this._limit;
+      return this._count;
     }
 
     this._bodyHeight = parseFloat(this._body.style('height'));
     this._bodyWidth = parseFloat(this._body.style('width'));
 
     if (this._columns) {
-      this._limit = Math.round(this._bodyHeight / this._itemHeight) *
+      this._count = Math.round(this._bodyHeight / this._itemHeight) *
         this._columns;
     } else if (this._rows) {
-      this._limit = Math.round(this._bodyWidth / this._itemWidth) *
+      this._count = Math.round(this._bodyWidth / this._itemWidth) *
         this._rows;
     }
 
@@ -293,7 +293,7 @@ export default class Scroller {
   }
 
   _handleResize() {
-    this.limit(true);
+    this.count(true);
     this._handleScroll();
   }
 
@@ -304,7 +304,7 @@ export default class Scroller {
       this._offset = this._offsetLeft(this._body.node().scrollLeft);
     }
 
-    const size = this._model.size();
+    const count = this._model.count();
 
     const items = new Map(this._items);
     const pages = Object.assign({}, this._pages);
@@ -318,11 +318,11 @@ export default class Scroller {
     let datumIndex = 0;
 
     const max = Math.min(this._model.total(),
-      this._offset + this._limit + this._extra);
+      this._offset + this._count + this._extra);
 
     for (; i < max; i += 1) {
-      pageIndex = Math.floor(i / size);
-      datumIndex = i % size;
+      pageIndex = Math.floor(i / count);
+      datumIndex = i % count;
 
       if (typeof this._pages[pageIndex] === 'undefined') {
         loadItems.push(i);
@@ -380,15 +380,15 @@ export default class Scroller {
   }
 
   _render(range) {
-    const size = this._model.size();
+    const count = this._model.count();
 
     let pageIndex = 0;
     let datumIndex = 0;
     let datum = null;
 
     for (let i = range[0]; i <= range[1]; i += 1) {
-      pageIndex = Math.floor(i / size);
-      datumIndex = i % size;
+      pageIndex = Math.floor(i / count);
+      datumIndex = i % count;
       datum = this._pages[pageIndex] && this._pages[pageIndex][datumIndex];
 
       if (!datum) {
@@ -413,7 +413,7 @@ export default class Scroller {
         item = this._item(datum, i);
         this._items.set(datum, item);
 
-        const next = this._find(i, size);
+        const next = this._find(i, count);
 
         if (next) {
           this._body.node().insertBefore(item.root().node(),
@@ -601,7 +601,7 @@ export default class Scroller {
     return this._normalize(left);
   }
 
-  _find(index, size) {
+  _find(index, count) {
     index += 1;
 
     let pageIndex = 0;
@@ -609,8 +609,8 @@ export default class Scroller {
     let datum = null;
 
     for (; index < this._model.total(); index += 1) {
-      pageIndex = Math.floor(index / size);
-      datumIndex = index % size;
+      pageIndex = Math.floor(index / count);
+      datumIndex = index % count;
       datum = this._pages[pageIndex] && this._pages[pageIndex][datumIndex];
 
       if (this._items.has(datum)) {
