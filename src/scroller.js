@@ -370,7 +370,7 @@ export default class Scroller {
     let loaded = 0;
 
     pages.forEach((index) => {
-      this._model.page(index).data((data) => {
+      this._model.page(index).select((data) => {
         this._pages.set(index, data);
         loaded += 1;
 
