@@ -34,8 +34,8 @@ export default class Scroller {
 
     this._pages = new Map();
 
-    this._handleResize = (e) => this._resize(e);
-    this._handleScroll = (e) => this._scroll(e);
+    this._handleResize = () => this.resize();
+    this._handleScroll = () => this.update();
 
     this._window = select(window);
 
@@ -210,7 +210,7 @@ export default class Scroller {
     this._offset = offset;
 
     if (lastOffset === 0 && offset === 0) {
-      this._scroll();
+      this.update();
     } else if (this._columns) {
       this._body.node().scrollTop = this._scrollTop(offset);
     } else if (this._rows) {
@@ -266,45 +266,7 @@ export default class Scroller {
     return this;
   }
 
-  clear() {
-    if (this._message) {
-      this._message.destroy();
-      this._message = null;
-    }
-
-    this._items.forEach((item) => {
-      item.destroy();
-    });
-
-    this._headers.forEach((header) => {
-      header.destroy();
-    });
-
-    this._pages.clear();
-    this._items.clear();
-    this._headers.clear();
-
-    return this;
-  }
-
-  _bind(delay = 25) {
-    this._window.on('resize.scola-scroller',
-      debounce(this._handleResize, delay));
-    this._body.on('scroll.scola-scroller',
-      debounce(this._handleScroll, delay));
-  }
-
-  _unbind() {
-    this._window.on('resize.scola-scroller', null);
-    this._body.on('scroll.scola-scroller', null);
-  }
-
-  _resize() {
-    this.count(true);
-    this._scroll();
-  }
-
-  _scroll() {
+  update() {
     if (this._columns) {
       this._offset = this._offsetTop(this._body.node().scrollTop);
     } else if (this._rows) {
@@ -367,11 +329,57 @@ export default class Scroller {
     }
   }
 
+  resize() {
+    this.count(true);
+    this.update();
+  }
+
+  clear() {
+    if (this._message) {
+      this._message.destroy();
+      this._message = null;
+    }
+
+    this._items.forEach((item) => {
+      item.destroy();
+    });
+
+    this._headers.forEach((header) => {
+      header.destroy();
+    });
+
+    this._pages.clear();
+    this._items.clear();
+    this._headers.clear();
+
+    return this;
+  }
+
+  _bind(delay = 25) {
+    this._window.on('resize.scola-scroller',
+      debounce(this._handleResize, delay));
+    this._body.on('scroll.scola-scroller',
+      debounce(this._handleScroll, delay));
+  }
+
+  _unbind() {
+    this._window.on('resize.scola-scroller', null);
+    this._body.on('scroll.scola-scroller', null);
+  }
+
   _load(pages, items) {
     let loaded = 0;
 
     pages.forEach((index) => {
-      this._model.page(index).select((data) => {
+      this._model.page(index).select((error, data) => {
+        if (error) {
+          this._root.dispatch('error', {
+            detail: new Error('page_not_loaded')
+          });
+
+          return;
+        }
+
         this._pages.set(index, data);
         loaded += 1;
 
