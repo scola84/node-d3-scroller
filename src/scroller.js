@@ -1,5 +1,6 @@
 import { select } from 'd3-selection';
 import debounce from 'lodash-es/debounce.js';
+import throttle from 'lodash-es/throttle.js';
 
 export default class Scroller {
   constructor() {
@@ -25,16 +26,16 @@ export default class Scroller {
     this._offset = 0;
     this._count = 0;
 
-    this._empty = null;
-    this._header = null;
-    this._item = null;
-    this._scroll = null;
-
-    this._pages = new Map();
+    this._callbacks = {};
 
     this._message = null;
     this._headers = new Map();
     this._items = new Map();
+
+    this._pages = new Map();
+
+    this._handleResize = (e) => this._resize(e);
+    this._handleScroll = (e) => this._scroll(e);
 
     this._window = select(window);
 
@@ -139,22 +140,22 @@ export default class Scroller {
   }
 
   empty(empty) {
-    this._empty = empty;
+    this._callbacks.empty = empty;
     return this;
   }
 
   header(header) {
-    this._header = header;
+    this._callbacks.header = header;
     return this;
   }
 
   item(item) {
-    this._item = item;
+    this._callbacks.item = item;
     return this;
   }
 
   scroll(scroll) {
-    this._scroll = scroll;
+    this._callbacks.scroll = scroll;
     return this;
   }
 
@@ -209,7 +210,7 @@ export default class Scroller {
     this._offset = offset;
 
     if (lastOffset === 0 && offset === 0) {
-      this._handleScroll();
+      this._scroll();
     } else if (this._columns) {
       this._body.node().scrollTop = this._scrollTop(offset);
     } else if (this._rows) {
@@ -288,22 +289,22 @@ export default class Scroller {
 
   _bind(delay = 25) {
     this._window.on('resize.scola-scroller',
-      debounce(this._handleResize.bind(this), delay));
-    this._body.on('scroll',
-      debounce(this._handleScroll.bind(this), delay));
+      debounce(this._handleResize, delay));
+    this._body.on('scroll.scola-scroller',
+      debounce(this._handleScroll, delay));
   }
 
   _unbind() {
     this._window.on('resize.scola-scroller', null);
-    this._body.on('scroll', null);
+    this._body.on('scroll.scola-scroller', null);
   }
 
-  _handleResize() {
+  _resize() {
     this.count(true);
-    this._handleScroll();
+    this._scroll();
   }
 
-  _handleScroll() {
+  _scroll() {
     if (this._columns) {
       this._offset = this._offsetTop(this._body.node().scrollTop);
     } else if (this._rows) {
@@ -361,8 +362,8 @@ export default class Scroller {
       return;
     }
 
-    if (this._scroll) {
-      this._scroll();
+    if (this._callbacks.scroll) {
+      this._callbacks.scroll();
     }
   }
 
@@ -377,8 +378,8 @@ export default class Scroller {
         if (loaded === pages.size) {
           this._render(this._range(items));
 
-          if (this._scroll) {
-            this._scroll();
+          if (this._callbacks.scroll) {
+            this._callbacks.scroll();
           }
         }
       });
@@ -420,7 +421,7 @@ export default class Scroller {
       if (this._items.has(datum)) {
         item = this._items.get(datum);
       } else {
-        item = this._item(datum, i);
+        item = this._callbacks.item(datum, i);
         this._items.set(datum, item);
 
         const next = this._find(i, count);
@@ -472,7 +473,7 @@ export default class Scroller {
       const groups = this._model.groups();
 
       if (groupIndex !== -1 && groups[groupIndex].begin === i) {
-        header = this._header(groups[groupIndex]);
+        header = this._callbacks.header(groups[groupIndex]);
         item.first();
 
         if (this._columns) {
@@ -503,7 +504,7 @@ export default class Scroller {
 
     if (this._items.size === 0) {
       if (!this._message) {
-        this._message = this._empty();
+        this._message = this._callbacks.empty();
         this._body.node().appendChild(this._message.root().node());
       }
     } else if (this._message) {
@@ -619,7 +620,6 @@ export default class Scroller {
 
     let page = null;
     let datum = null;
-
 
     for (; index < this._model.total(); index += 1) {
       pageIndex = Math.floor(index / count);
