@@ -28,7 +28,8 @@ export default class Scroller {
 
     this._onempty = null;
     this._onheader = null;
-    this._onitem = null;
+    this._onenter = null;
+    this._onchange = null;
     this._onscroll = null;
 
     this._message = null;
@@ -157,8 +158,13 @@ export default class Scroller {
     return this;
   }
 
-  item(item) {
-    this._onitem = item;
+  enter(enter) {
+    this._onenter = enter;
+    return this;
+  }
+
+  change(change) {
+    this._onchange = change;
     return this;
   }
 
@@ -437,8 +443,9 @@ export default class Scroller {
 
       if (this._items.has(datum)) {
         item = this._items.get(datum).first(false);
+        item = this._onchange ? this._onchange(datum, item) : item;
       } else {
-        item = this._onitem(datum, i);
+        item = this._onenter(datum, i);
         this._items.set(datum, item);
 
         const next = this._find(i, count);
