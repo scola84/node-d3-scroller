@@ -74,7 +74,12 @@ export default class Scroller {
   }
 
   destroy() {
+    this._pages.clear();
+    this._items.clear();
+    this._headers.clear();
+
     this._unbind();
+
     this._root.dispatch('destroy');
     this._root.remove();
     this._root = null;
@@ -275,8 +280,9 @@ export default class Scroller {
 
     const count = this._model.count();
 
-    const items = new Map(this._items);
-    const pages = new Map(this._pages);
+    const deleteItems = new Set(this._items.keys());
+    const deletePages = new Set(this._pages.keys());
+
     const loadPages = new Set();
 
     const loadItems = [];
@@ -293,22 +299,22 @@ export default class Scroller {
       pageIndex = Math.floor(i / count);
       datumIndex = i % count;
 
-      if (pages.has(pageIndex) === false) {
+      if (this._pages.has(pageIndex) === false) {
         loadItems.push(i);
         loadPages.add(pageIndex);
       } else {
         renderItems.push(i);
-        items.delete(pages.get(pageIndex)[datumIndex]);
-        pages.delete(pageIndex);
+        deleteItems.delete(this._pages.get(pageIndex)[datumIndex]);
+        deletePages.delete(pageIndex);
       }
     }
 
-    pages.forEach((page, index) => {
+    deletePages.forEach((index) => {
       this._pages.delete(index);
     });
 
-    items.forEach((item, datum) => {
-      item.destroy();
+    deleteItems.forEach((datum) => {
+      this._items.get(datum).destroy();
       this._items.delete(datum);
     });
 
@@ -427,7 +433,7 @@ export default class Scroller {
       let left = 0;
 
       if (this._items.has(datum)) {
-        item = this._items.get(datum);
+        item = this._items.get(datum).first(false);
       } else {
         item = this._callbacks.item(datum, i);
         this._items.set(datum, item);
@@ -482,7 +488,7 @@ export default class Scroller {
 
       if (groupIndex !== -1 && groups[groupIndex].begin === i) {
         header = this._callbacks.header(groups[groupIndex]);
-        item.first();
+        item.first(true);
 
         if (this._columns) {
           header.root().styles({
@@ -506,7 +512,7 @@ export default class Scroller {
       } else if ((this._columns && i < this._columns) ||
         (this._rows && i < this._rows)) {
 
-        item.first();
+        item.first(true);
       }
     }
 
