@@ -26,7 +26,10 @@ export default class Scroller {
     this._offset = 0;
     this._count = 0;
 
-    this._callbacks = {};
+    this._onempty = null;
+    this._onheader = null;
+    this._onitem = null;
+    this._onscroll = null;
 
     this._message = null;
     this._headers = new Map();
@@ -145,22 +148,22 @@ export default class Scroller {
   }
 
   empty(empty) {
-    this._callbacks.empty = empty;
+    this._onempty = empty;
     return this;
   }
 
   header(header) {
-    this._callbacks.header = header;
+    this._onheader = header;
     return this;
   }
 
   item(item) {
-    this._callbacks.item = item;
+    this._onitem = item;
     return this;
   }
 
   scroll(scroll) {
-    this._callbacks.scroll = scroll;
+    this._onscroll = scroll;
     return this;
   }
 
@@ -330,8 +333,8 @@ export default class Scroller {
       return;
     }
 
-    if (this._callbacks.scroll) {
-      this._callbacks.scroll();
+    if (this._onscroll) {
+      this._onscroll();
     }
   }
 
@@ -392,8 +395,8 @@ export default class Scroller {
         if (loaded === pages.size) {
           this._render(this._range(items));
 
-          if (this._callbacks.scroll) {
-            this._callbacks.scroll();
+          if (this._onscroll) {
+            this._onscroll();
           }
         }
       });
@@ -435,7 +438,7 @@ export default class Scroller {
       if (this._items.has(datum)) {
         item = this._items.get(datum).first(false);
       } else {
-        item = this._callbacks.item(datum, i);
+        item = this._onitem(datum, i);
         this._items.set(datum, item);
 
         const next = this._find(i, count);
@@ -487,7 +490,7 @@ export default class Scroller {
       const groups = this._model.groups();
 
       if (groupIndex !== -1 && groups[groupIndex].begin === i) {
-        header = this._callbacks.header(groups[groupIndex]);
+        header = this._onheader(groups[groupIndex]);
         item.first(true);
 
         if (this._columns) {
@@ -518,7 +521,7 @@ export default class Scroller {
 
     if (this._items.size === 0) {
       if (!this._message) {
-        this._message = this._callbacks.empty();
+        this._message = this._onempty();
         this._body.node().appendChild(this._message.root().node());
       }
     } else if (this._message) {
