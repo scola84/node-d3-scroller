@@ -309,12 +309,15 @@ export default class Scroller {
       datumIndex = i % count;
 
       if (this._pages.has(pageIndex) === false) {
-        loadItems.push(i);
         loadPages.add(pageIndex);
+        loadItems.push(i);
       } else {
         renderItems.push(i);
-        deleteItems.delete(this._pages.get(pageIndex)[datumIndex]);
         deletePages.delete(pageIndex);
+        deleteItems.delete(this._pages
+          .get(pageIndex)
+          .get(datumIndex)
+          .id);
       }
     }
 
@@ -322,9 +325,11 @@ export default class Scroller {
       this._pages.delete(index);
     });
 
+    console.log(deleteItems);
+
     deleteItems.forEach((datum) => {
-      this._items.get(datum).destroy();
-      this._items.delete(datum);
+      this._items.get(datum.id).destroy();
+      this._items.delete(datum.id);
     });
 
     this._headers.forEach((header, group) => {
@@ -386,7 +391,7 @@ export default class Scroller {
     let loaded = 0;
 
     pages.forEach((index) => {
-      this._model.page(index).select((error, data) => {
+      this._model.page(index).select((error) => {
         if (error) {
           this._root.dispatch('error', {
             detail: new Error('page_not_loaded')
@@ -395,7 +400,7 @@ export default class Scroller {
           return;
         }
 
-        this._pages.set(index, data);
+        this._pages.set(index, this._model.page(index));
         loaded += 1;
 
         if (loaded === pages.size) {
@@ -427,7 +432,7 @@ export default class Scroller {
       }
 
       datumIndex = i % count;
-      datum = page[datumIndex];
+      datum = page.get(datumIndex);
 
       const groupIndex = this._group(i);
       const style = this._direction === -1 ? 'right' : 'left';
@@ -441,12 +446,12 @@ export default class Scroller {
       let top = 0;
       let left = 0;
 
-      if (this._items.has(datum)) {
-        item = this._items.get(datum).first(false);
+      if (this._items.has(datum.id)) {
+        item = this._items.get(datum.id).first(false);
         item = this._onchange ? this._onchange(datum, item) : item;
       } else {
         item = this._onenter(datum, i);
-        this._items.set(datum, item);
+        this._items.set(datum.id, item);
 
         const next = this._find(i, count);
 
@@ -654,10 +659,10 @@ export default class Scroller {
       }
 
       datumIndex = index % count;
-      datum = page[datumIndex];
+      datum = page.get(datumIndex);
 
-      if (this._items.has(datum) === true) {
-        return this._items.get(datum);
+      if (this._items.has(datum.id) === true) {
+        return this._items.get(datum.id);
       }
     }
 
