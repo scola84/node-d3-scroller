@@ -325,11 +325,9 @@ export default class Scroller {
       this._pages.delete(index);
     });
 
-    console.log(deleteItems);
-
-    deleteItems.forEach((datum) => {
-      this._items.get(datum.id).destroy();
-      this._items.delete(datum.id);
+    deleteItems.forEach((id) => {
+      this._items.get(id).destroy();
+      this._items.delete(id);
     });
 
     this._headers.forEach((header, group) => {
