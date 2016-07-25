@@ -373,6 +373,22 @@ export default class Scroller {
     return this;
   }
 
+  sibling(callback) {
+    const items = [...this._items.values()];
+    let sibling = null;
+
+    items.some((item, index) => {
+      if (callback(item) === true) {
+        index += index === items.length - 1 ? -1 : 1;
+        sibling = items[index];
+      }
+
+      return Boolean(sibling);
+    });
+
+    return sibling;
+  }
+
   _bind(delay = 25) {
     this._window.on('resize.scola-scroller',
       debounce(this._handleResize, delay));
