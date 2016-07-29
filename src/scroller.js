@@ -263,12 +263,12 @@ export default class Scroller {
 
     if (this._columns) {
       name = 'top';
-      value = (this._model.total() / this._columns * this._itemHeight) +
-        (this._model.groups().length * this._headerHeight) - 1;
+      value = (this._model.meta('total') / this._columns * this._itemHeight) +
+        (this._model.meta('groups').length * this._headerHeight) - 1;
     } else if (this._rows) {
       name = 'left';
-      value = this._model.total() / this._rows * this._itemWidth +
-        (this._model.groups().length * this._headerWidth) - 1;
+      value = this._model.meta('total') / this._rows * this._itemWidth +
+        (this._model.meta('groups').length * this._headerWidth) - 1;
 
       if (this._direction === -1) {
         value -= this._body.node().offsetWidth;
@@ -298,7 +298,7 @@ export default class Scroller {
     const renderItems = [];
 
     let i = Math.max(0, this._offset - this._extra);
-    const max = Math.min(this._model.total(),
+    const max = Math.min(this._model.meta('total'),
       this._offset + this._count + this._extra);
 
     let pageIndex = 0;
@@ -405,26 +405,29 @@ export default class Scroller {
     let loaded = 0;
 
     pages.forEach((index) => {
-      this._model.page(index).select((error) => {
-        if (error) {
-          this._root.dispatch('error', {
-            detail: new Error('page_not_loaded')
-          });
+      this._model
+        .page(index)
+        .select()
+        .execute((error) => {
+          if (error) {
+            this._root.dispatch('error', {
+              detail: new Error('page_not_loaded')
+            });
 
-          return;
-        }
-
-        this._pages.set(index, this._model.page(index));
-        loaded += 1;
-
-        if (loaded === pages.size) {
-          this._render(this._range(items));
-
-          if (this._onscroll) {
-            this._onscroll();
+            return;
           }
-        }
-      });
+
+          this._pages.set(index, this._model.page(index));
+          loaded += 1;
+
+          if (loaded === pages.size) {
+            this._render(this._range(items));
+
+            if (this._onscroll) {
+              this._onscroll();
+            }
+          }
+        });
     });
   }
 
@@ -513,7 +516,7 @@ export default class Scroller {
         });
       }
 
-      const groups = this._model.groups();
+      const groups = this._model.meta('groups');
 
       if (groupIndex !== -1 && groups[groupIndex].begin === i) {
         header = this._onheader(groups[groupIndex]);
@@ -557,7 +560,7 @@ export default class Scroller {
   }
 
   _offsetTop(scroll) {
-    const groups = this._model.groups();
+    const groups = this._model.meta('groups');
 
     let top = 0;
     let bottom = 0;
@@ -580,7 +583,7 @@ export default class Scroller {
   _offsetLeft(scroll) {
     scroll = this._normalize(scroll);
 
-    const groups = this._model.groups();
+    const groups = this._model.meta('groups');
 
     let left = 0;
     let right = 0;
@@ -602,7 +605,7 @@ export default class Scroller {
   }
 
   _scrollTop(offset) {
-    const groups = this._model.groups();
+    const groups = this._model.meta('groups');
 
     let top = 0;
 
@@ -627,7 +630,7 @@ export default class Scroller {
   }
 
   _scrollLeft(offset) {
-    const groups = this._model.groups();
+    const groups = this._model.meta('groups');
 
     let left = 0;
 
@@ -664,7 +667,7 @@ export default class Scroller {
     let page = null;
     let datum = null;
 
-    for (; index < this._model.total(); index += 1) {
+    for (; index < this._model.meta('total'); index += 1) {
       pageIndex = Math.floor(index / count);
       page = this._pages.get(pageIndex);
 
@@ -684,7 +687,7 @@ export default class Scroller {
   }
 
   _group(index) {
-    const groups = this._model.groups();
+    const groups = this._model.meta('groups');
 
     for (let i = 0; i < groups.length; i += 1) {
       if (index >= groups[i].begin && index < groups[i].end) {
