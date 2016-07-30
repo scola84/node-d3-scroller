@@ -25,12 +25,12 @@ export default class Scroller {
     this._offset = 0;
     this._count = 0;
 
-    this._onid = null;
-    this._onempty = null;
-    this._onheader = null;
-    this._onenter = null;
-    this._onchange = null;
-    this._onscroll = null;
+    this._id = null;
+    this._empty = null;
+    this._header = null;
+    this._enter = null;
+    this._change = null;
+    this._scroll = null;
 
     this._message = null;
     this._headers = new Map();
@@ -153,32 +153,32 @@ export default class Scroller {
   }
 
   id(id) {
-    this._onid = id;
+    this._id = id;
     return this;
   }
 
   empty(empty) {
-    this._onempty = empty;
+    this._empty = empty;
     return this;
   }
 
   header(header) {
-    this._onheader = header;
+    this._header = header;
     return this;
   }
 
   enter(enter) {
-    this._onenter = enter;
+    this._enter = enter;
     return this;
   }
 
   change(change) {
-    this._onchange = change;
+    this._change = change;
     return this;
   }
 
   scroll(scroll) {
-    this._onscroll = scroll;
+    this._scroll = scroll;
     return this;
   }
 
@@ -312,6 +312,7 @@ export default class Scroller {
 
     let pageIndex = 0;
     let datumIndex = 0;
+    let datumId = null;
 
     for (; i < max; i += 1) {
       pageIndex = Math.floor(i / count);
@@ -321,12 +322,12 @@ export default class Scroller {
         loadPages.add(pageIndex);
         loadItems.push(i);
       } else {
+        datumId = this._id(this._pages
+          .get(pageIndex).get(datumIndex).id);
+
         renderItems.push(i);
         deletePages.delete(pageIndex);
-        deleteItems.delete(this._onid(this._pages
-          .get(pageIndex)
-          .get(datumIndex)
-          .id));
+        deleteItems.delete(datumId);
       }
     }
 
@@ -351,8 +352,8 @@ export default class Scroller {
       return;
     }
 
-    if (this._onscroll) {
-      this._onscroll();
+    if (this._scroll) {
+      this._scroll();
     }
   }
 
@@ -432,8 +433,8 @@ export default class Scroller {
           if (loaded === pages.size) {
             this._render(this._range(items));
 
-            if (this._onscroll) {
-              this._onscroll();
+            if (this._scroll) {
+              this._scroll();
             }
           }
         });
@@ -445,11 +446,11 @@ export default class Scroller {
     const total = this._model.meta('total');
 
     let pageIndex = 0;
-    let datumIndex = 0;
-
     let page = null;
+
+    let datumIndex = 0;
     let datum = null;
-    let id = null;
+    let datumId = null;
 
     for (let i = range[0]; i <= range[1]; i += 1) {
       pageIndex = Math.floor(i / count);
@@ -461,7 +462,7 @@ export default class Scroller {
 
       datumIndex = i % count;
       datum = page.get(datumIndex);
-      id = this._onid(datum);
+      datumId = this._id(datum);
 
       const groupIndex = this._group(i);
       const style = this._direction === -1 ? 'right' : 'left';
@@ -475,12 +476,12 @@ export default class Scroller {
       let top = 0;
       let left = 0;
 
-      if (this._items.has(id)) {
-        item = this._items.get(id).first(false);
-        item = this._onchange ? this._onchange(item, datum, i) : item;
+      if (this._items.has(datumId)) {
+        item = this._items.get(datumId).first(false);
+        item = this._change ? this._change(item, datum, i) : item;
       } else {
-        item = this._onenter(datum, i);
-        this._items.set(id, item);
+        item = this._enter(datum, i);
+        this._items.set(datumId, item);
 
         const next = this.next(i, count, total);
 
@@ -531,7 +532,7 @@ export default class Scroller {
       const groups = this._model.meta('groups');
 
       if (groupIndex !== -1 && groups[groupIndex].begin === i) {
-        header = this._onheader(groups[groupIndex]);
+        header = this._header(groups[groupIndex]);
         item.first(true);
 
         if (this._columns) {
@@ -562,7 +563,7 @@ export default class Scroller {
 
     if (this._items.size === 0) {
       if (!this._message) {
-        this._message = this._onempty();
+        this._message = this._empty();
         this._body.node().appendChild(this._message.root().node());
       }
     } else if (this._message) {
@@ -715,7 +716,7 @@ export default class Scroller {
     const datumIndex = index % count;
     const datum = page.get(datumIndex);
 
-    return this._items.get(this._onid(datum));
+    return this._items.get(this._id(datum));
   }
 
   _group(index) {
