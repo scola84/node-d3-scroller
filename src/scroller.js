@@ -1,6 +1,5 @@
 import { select } from 'd3-selection';
 import debounce from 'lodash-es/debounce.js';
-import throttle from 'lodash-es/throttle.js';
 
 export default class Scroller {
   constructor() {
@@ -26,6 +25,7 @@ export default class Scroller {
     this._offset = 0;
     this._count = 0;
 
+    this._onid = null;
     this._onempty = null;
     this._onheader = null;
     this._onenter = null;
@@ -101,6 +101,10 @@ export default class Scroller {
     return this._items;
   }
 
+  item(id) {
+    return this._items.get(Number(id));
+  }
+
   model(model) {
     if (typeof model === 'undefined') {
       return this._model;
@@ -145,6 +149,11 @@ export default class Scroller {
     this._body.attr('dir', direction);
     this._direction = direction === 'rtl' ? -1 : 1;
 
+    return this;
+  }
+
+  id(id) {
+    this._onid = id;
     return this;
   }
 
@@ -314,10 +323,10 @@ export default class Scroller {
       } else {
         renderItems.push(i);
         deletePages.delete(pageIndex);
-        deleteItems.delete(this._pages
+        deleteItems.delete(this._onid(this._pages
           .get(pageIndex)
           .get(datumIndex)
-          .id);
+          .id));
       }
     }
 
@@ -433,12 +442,14 @@ export default class Scroller {
 
   _render(range) {
     const count = this._model.count();
+    const total = this._model.meta('total');
 
     let pageIndex = 0;
     let datumIndex = 0;
 
     let page = null;
     let datum = null;
+    let id = null;
 
     for (let i = range[0]; i <= range[1]; i += 1) {
       pageIndex = Math.floor(i / count);
@@ -450,6 +461,7 @@ export default class Scroller {
 
       datumIndex = i % count;
       datum = page.get(datumIndex);
+      id = this._onid(datum);
 
       const groupIndex = this._group(i);
       const style = this._direction === -1 ? 'right' : 'left';
@@ -463,14 +475,14 @@ export default class Scroller {
       let top = 0;
       let left = 0;
 
-      if (this._items.has(datum.id)) {
-        item = this._items.get(datum.id).first(false);
-        item = this._onchange ? this._onchange(datum, item) : item;
+      if (this._items.has(id)) {
+        item = this._items.get(id).first(false);
+        item = this._onchange ? this._onchange(item, datum, i) : item;
       } else {
         item = this._onenter(datum, i);
-        this._items.set(datum.id, item);
+        this._items.set(id, item);
 
-        const next = this._find(i, count);
+        const next = this.next(i, count, total);
 
         if (next) {
           this._body.node().insertBefore(item.root().node(),
@@ -658,32 +670,52 @@ export default class Scroller {
     return this._normalize(left);
   }
 
-  _find(index, count) {
-    index += 1;
+  previous(index, count) {
+    index -= 1;
+    let item = null;
 
-    let pageIndex = 0;
-    let datumIndex = 0;
+    for (; index >= 0; index -= 1) {
+      item = this._item(index, count);
 
-    let page = null;
-    let datum = null;
-
-    for (; index < this._model.meta('total'); index += 1) {
-      pageIndex = Math.floor(index / count);
-      page = this._pages.get(pageIndex);
-
-      if (typeof page === 'undefined') {
-        continue;
-      }
-
-      datumIndex = index % count;
-      datum = page.get(datumIndex);
-
-      if (this._items.has(datum.id) === true) {
-        return this._items.get(datum.id);
+      if (item) {
+        return item;
       }
     }
 
     return null;
+  }
+
+  next(index, count, total) {
+    index += 1;
+    total = total || this._model.meta('total');
+
+    let item = null;
+
+    for (; index < total; index += 1) {
+      item = this._item(index, count);
+
+      if (item) {
+        return item;
+      }
+    }
+
+    return null;
+  }
+
+  _item(index, count) {
+    count = count || this._model.count();
+
+    const pageIndex = Math.floor(index / count);
+    const page = this._pages.get(pageIndex);
+
+    if (typeof page === 'undefined') {
+      return null;
+    }
+
+    const datumIndex = index % count;
+    const datum = page.get(datumIndex);
+
+    return this._items.get(this._onid(datum));
   }
 
   _group(index) {
