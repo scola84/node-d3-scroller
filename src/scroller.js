@@ -312,7 +312,6 @@ export default class Scroller {
 
     let pageIndex = 0;
     let datumIndex = 0;
-    let datumId = null;
 
     for (; i < max; i += 1) {
       pageIndex = Math.floor(i / count);
@@ -322,12 +321,10 @@ export default class Scroller {
         loadPages.add(pageIndex);
         loadItems.push(i);
       } else {
-        datumId = this._id(this._pages
-          .get(pageIndex).get(datumIndex).id);
-
         renderItems.push(i);
         deletePages.delete(pageIndex);
-        deleteItems.delete(datumId);
+        deleteItems.delete(this._id(this._pages.get(pageIndex)
+          .get(datumIndex)));
       }
     }
 
