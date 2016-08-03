@@ -8,6 +8,7 @@
   "main": "./dist/d3-scroller.js",
   "jsnext:main": "index.js",
   "dependencies": {
+    "async-each": "^1.0.0",
     "lodash-es": "^4.13.1"
   },
   "devDependencies": {
