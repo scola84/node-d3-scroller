@@ -321,18 +321,21 @@ export default class Scroller {
 
     let pageIndex = 0;
     let datumIndex = 0;
+    let datum = null;
 
     for (; i < max; i += 1) {
       pageIndex = Math.floor(i / this._pageCount);
-      datumIndex = i % this._pageCount;
 
       if (this._pages.has(pageIndex) === false) {
         loadPages.add(pageIndex);
         loadItems.push(i);
       } else {
+        datumIndex = i % this._pageCount;
+        datum = this._pages.get(pageIndex)[datumIndex];
+
         renderItems.push(i);
         deletePages.delete(pageIndex);
-        deleteItems.delete(this._id(this._pages.get(pageIndex)[datumIndex]));
+        deleteItems.delete(this._id(datum));
       }
     }
 
