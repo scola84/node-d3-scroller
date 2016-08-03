@@ -1,5 +1,6 @@
 import { select } from 'd3-selection';
 import debounce from 'lodash-es/debounce.js';
+import each from 'async-each';
 
 export default class Scroller {
   constructor() {
@@ -23,7 +24,10 @@ export default class Scroller {
     this._direction = 1;
 
     this._offset = 0;
-    this._count = 0;
+    this._bodyCount = 0;
+    this._pageCount = 0;
+
+    this._meta = null;
 
     this._id = null;
     this._empty = null;
@@ -39,7 +43,7 @@ export default class Scroller {
     this._pages = new Map();
 
     this._handleResize = () => this.resize();
-    this._handleScroll = () => this.update();
+    this._handleScroll = () => this.render();
 
     this._window = select(window);
 
@@ -99,10 +103,6 @@ export default class Scroller {
 
   items() {
     return this._items;
-  }
-
-  item(id) {
-    return this._items.get(Number(id));
   }
 
   model(model) {
@@ -233,7 +233,7 @@ export default class Scroller {
     this._offset = offset;
 
     if (lastOffset === 0 && offset === 0) {
-      this.update();
+      this.render();
     } else if (this._columns) {
       this._body.node().scrollTop = this._scrollTop(offset);
     } else if (this._rows) {
@@ -245,17 +245,17 @@ export default class Scroller {
 
   count(action) {
     if (typeof action === 'undefined') {
-      return this._count;
+      return this._bodyCount;
     }
 
     this._bodyHeight = parseFloat(this._body.style('height'));
     this._bodyWidth = parseFloat(this._body.style('width'));
 
     if (this._columns) {
-      this._count = Math.round(this._bodyHeight / this._itemHeight) *
+      this._bodyCount = Math.round(this._bodyHeight / this._itemHeight) *
         this._columns;
     } else if (this._rows) {
-      this._count = Math.round(this._bodyWidth / this._itemWidth) *
+      this._bodyCount = Math.round(this._bodyWidth / this._itemWidth) *
         this._rows;
     }
 
@@ -272,12 +272,12 @@ export default class Scroller {
 
     if (this._columns) {
       name = 'top';
-      value = (this._model.meta('total') / this._columns * this._itemHeight) +
-        (this._model.meta('groups').length * this._headerHeight) - 1;
+      value = (this._meta.total / this._columns * this._itemHeight) +
+        (this._meta.groups.length * this._headerHeight) - 1;
     } else if (this._rows) {
       name = 'left';
-      value = this._model.meta('total') / this._rows * this._itemWidth +
-        (this._model.meta('groups').length * this._headerWidth) - 1;
+      value = this._meta.total / this._rows * this._itemWidth +
+        (this._meta.groups.length * this._headerWidth) - 1;
 
       if (this._direction === -1) {
         value -= this._body.node().offsetWidth;
@@ -289,14 +289,23 @@ export default class Scroller {
     return this;
   }
 
-  update() {
+  load(callback) {
+    this._loadMeta((error) => {
+      if (error) {
+        callback(error);
+        return;
+      }
+
+      this._loadPages(null, callback);
+    });
+  }
+
+  render() {
     if (this._columns) {
       this._offset = this._offsetTop(this._body.node().scrollTop);
     } else if (this._rows) {
       this._offset = this._offsetLeft(this._body.node().scrollLeft);
     }
-
-    const count = this._model.count();
 
     const deleteItems = new Set(this._items.keys());
     const deletePages = new Set(this._pages.keys());
@@ -307,15 +316,15 @@ export default class Scroller {
     const renderItems = [];
 
     let i = Math.max(0, this._offset - this._extra);
-    const max = Math.min(this._model.meta('total'),
-      this._offset + this._count + this._extra);
+    const max = Math.min(this._meta.total,
+      this._offset + this._bodyCount + this._extra);
 
     let pageIndex = 0;
     let datumIndex = 0;
 
     for (; i < max; i += 1) {
-      pageIndex = Math.floor(i / count);
-      datumIndex = i % count;
+      pageIndex = Math.floor(i / this._pageCount);
+      datumIndex = i % this._pageCount;
 
       if (this._pages.has(pageIndex) === false) {
         loadPages.add(pageIndex);
@@ -323,8 +332,7 @@ export default class Scroller {
       } else {
         renderItems.push(i);
         deletePages.delete(pageIndex);
-        deleteItems.delete(this._id(this._pages.get(pageIndex)
-          .get(datumIndex)));
+        deleteItems.delete(this._id(this._pages.get(pageIndex)[datumIndex]));
       }
     }
 
@@ -344,19 +352,18 @@ export default class Scroller {
 
     this._render(this._range(renderItems));
 
-    if (loadPages.size > 0) {
-      this._load(loadPages, loadItems);
-      return;
-    }
+    this._loadPages([...loadPages], () => {
+      this._render(this._range(loadItems));
 
-    if (this._scroll) {
-      this._scroll();
-    }
+      if (this._scroll) {
+        this._scroll();
+      }
+    });
   }
 
   resize() {
     this.count(true);
-    this.update();
+    this.render();
   }
 
   clear() {
@@ -408,40 +415,40 @@ export default class Scroller {
     this._body.on('scroll.scola-scroller', null);
   }
 
-  _load(pages, items) {
-    let loaded = 0;
+  _loadMeta(callback) {
+    this._model.meta().execute((error, data) => {
+      if (error) {
+        callback(error);
+        return;
+      }
 
-    pages.forEach((index) => {
-      this._model
-        .page(index)
-        .select()
-        .execute((error) => {
-          if (error) {
-            this._root.dispatch('error', {
-              detail: new Error('page_not_loaded')
-            });
+      this._meta = this._normalizeMeta(data);
+      this._pageCount = this._model.count();
 
-            return;
-          }
-
-          this._pages.set(index, this._model.page(index));
-          loaded += 1;
-
-          if (loaded === pages.size) {
-            this._render(this._range(items));
-
-            if (this._scroll) {
-              this._scroll();
-            }
-          }
-        });
+      callback();
     });
   }
 
-  _render(range) {
-    const count = this._model.count();
-    const total = this._model.meta('total');
+  _loadPages(pages, callback) {
+    pages = pages || [...this._pages.keys()];
 
+    each(pages, (index, eachCallback) => {
+      this._model
+        .page(index)
+        .select()
+        .execute((error, data) => {
+          if (error) {
+            eachCallback(error);
+            return;
+          }
+
+          this._pages.set(index, data);
+          eachCallback();
+        });
+    }, callback);
+  }
+
+  _render(range) {
     let pageIndex = 0;
     let page = null;
 
@@ -450,15 +457,15 @@ export default class Scroller {
     let datumId = null;
 
     for (let i = range[0]; i <= range[1]; i += 1) {
-      pageIndex = Math.floor(i / count);
+      pageIndex = Math.floor(i / this._pageCount);
       page = this._pages.get(pageIndex);
 
       if (typeof page === 'undefined') {
         continue;
       }
 
-      datumIndex = i % count;
-      datum = page.get(datumIndex);
+      datumIndex = i % this._pageCount;
+      datum = page[datumIndex];
       datumId = this._id(datum);
 
       const groupIndex = this._group(i);
@@ -480,7 +487,7 @@ export default class Scroller {
         item = this._enter(datum, i);
         this._items.set(datumId, item);
 
-        const next = this.next(i, count, total);
+        const next = this.next(i, this._pageCount, this._meta.total);
 
         if (next) {
           this._body.node().insertBefore(item.root().node(),
@@ -526,7 +533,7 @@ export default class Scroller {
         });
       }
 
-      const groups = this._model.meta('groups');
+      const groups = this._meta.groups;
 
       if (groupIndex !== -1 && groups[groupIndex].begin === i) {
         header = this._header(groups[groupIndex]);
@@ -570,7 +577,7 @@ export default class Scroller {
   }
 
   _offsetTop(scroll) {
-    const groups = this._model.meta('groups');
+    const groups = this._meta.groups;
 
     let top = 0;
     let bottom = 0;
@@ -591,9 +598,9 @@ export default class Scroller {
   }
 
   _offsetLeft(scroll) {
-    scroll = this._normalize(scroll);
+    scroll = this._normalizeScroll(scroll);
 
-    const groups = this._model.meta('groups');
+    const groups = this._meta.groups;
 
     let left = 0;
     let right = 0;
@@ -615,7 +622,7 @@ export default class Scroller {
   }
 
   _scrollTop(offset) {
-    const groups = this._model.meta('groups');
+    const groups = this._meta.groups;
 
     let top = 0;
 
@@ -640,7 +647,7 @@ export default class Scroller {
   }
 
   _scrollLeft(offset) {
-    const groups = this._model.meta('groups');
+    const groups = this._meta.groups;
 
     let left = 0;
 
@@ -665,7 +672,7 @@ export default class Scroller {
       left = (offset * this._itemWidth) + (offset === 0 ? 0 : 1);
     }
 
-    return this._normalize(left);
+    return this._normalizeScroll(left);
   }
 
   previous(index, count) {
@@ -685,7 +692,7 @@ export default class Scroller {
 
   next(index, count, total) {
     index += 1;
-    total = total || this._model.meta('total');
+    total = total || this._meta.total;
 
     let item = null;
 
@@ -701,7 +708,7 @@ export default class Scroller {
   }
 
   _item(index, count) {
-    count = count || this._model.count();
+    count = count || this._pageCount;
 
     const pageIndex = Math.floor(index / count);
     const page = this._pages.get(pageIndex);
@@ -711,13 +718,13 @@ export default class Scroller {
     }
 
     const datumIndex = index % count;
-    const datum = page.get(datumIndex);
+    const datum = page[datumIndex];
 
     return this._items.get(this._id(datum));
   }
 
   _group(index) {
-    const groups = this._model.meta('groups');
+    const groups = this._meta.groups;
 
     for (let i = 0; i < groups.length; i += 1) {
       if (index >= groups[i].begin && index < groups[i].end) {
@@ -728,13 +735,33 @@ export default class Scroller {
     return -1;
   }
 
-  _normalize(scroll) {
+  _normalizeScroll(scroll) {
     if (this._direction === -1) {
       return this._body.node().scrollWidth -
         this._body.node().offsetWidth - scroll;
     }
 
     return scroll;
+  }
+
+  _normalizeMeta(data) {
+    data = Object.assign({}, data);
+
+    if (typeof data.groups === 'undefined') {
+      data.groups = [];
+    }
+
+    if (typeof data.total === 'undefined') {
+      data.total = 0;
+
+      data.groups.forEach((group) => {
+        group.begin = data.total;
+        group.end = data.total + group.total;
+        data.total = group.end;
+      });
+    }
+
+    return data;
   }
 
   _range(numbers) {
