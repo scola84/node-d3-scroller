@@ -78,7 +78,7 @@ export default class Scroller {
         'width': 1
       });
 
-    this._bind();
+    this.bind();
   }
 
   destroy() {
@@ -86,7 +86,7 @@ export default class Scroller {
     this._items.clear();
     this._headers.clear();
 
-    this._unbind();
+    this.unbind();
 
     this._root.dispatch('destroy');
     this._root.remove();
@@ -406,16 +406,20 @@ export default class Scroller {
     return sibling;
   }
 
-  _bind(delay = 25) {
+  bind(delay = 100) {
     this._window.on('resize.scola-scroller',
       debounce(this._handleResize, delay));
     this._body.on('scroll.scola-scroller',
       debounce(this._handleScroll, delay));
+
+    return this;
   }
 
-  _unbind() {
+  unbind() {
     this._window.on('resize.scola-scroller', null);
     this._body.on('scroll.scola-scroller', null);
+
+    return this;
   }
 
   _loadMeta(callback) {
