@@ -105,6 +105,10 @@ export default class Scroller {
     return this._items;
   }
 
+  item(id) {
+    return this._items.get(id);
+  }
+
   model(model) {
     if (typeof model === 'undefined') {
       return this._model;
