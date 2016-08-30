@@ -82,10 +82,7 @@ export default class Scroller {
   }
 
   destroy() {
-    this._pages.clear();
-    this._items.clear();
-    this._headers.clear();
-
+    this.clear();
     this.unbind();
 
     this._root.dispatch('destroy');
@@ -427,7 +424,7 @@ export default class Scroller {
   }
 
   _loadMeta(callback) {
-    this._model.meta().execute((error, data) => {
+    this._model.meta((error, data) => {
       if (error) {
         callback(error);
         return;
@@ -445,9 +442,8 @@ export default class Scroller {
 
     each(pages, (index, eachCallback) => {
       this._model
-        .page(index)
-        .select()
-        .execute((error, data) => {
+        .set('index', index)
+        .page((error, data) => {
           if (error) {
             eachCallback(error);
             return;
