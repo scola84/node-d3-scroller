@@ -106,80 +106,80 @@ export default class Scroller {
     return this._items.get(id);
   }
 
-  model(model) {
-    if (typeof model === 'undefined') {
+  model(value) {
+    if (typeof value === 'undefined') {
       return this._model;
     }
 
-    this._model = model;
+    this._model = value;
     return this;
   }
 
-  columns(columns) {
-    if (typeof columns === 'undefined') {
+  columns(value) {
+    if (typeof value === 'undefined') {
       return this._columns;
     }
 
-    this._columns = columns;
-    this._extra = this._extraBase * columns;
+    this._columns = value;
+    this._extra = this._extraBase * value;
 
     return this;
   }
 
-  rows(rows) {
-    if (typeof rows === 'undefined') {
+  rows(value) {
+    if (typeof value === 'undefined') {
       return this._rows;
     }
 
-    this._rows = rows;
-    this._extra = this._extraBase * rows;
+    this._rows = value;
+    this._extra = this._extraBase * value;
 
     return this;
   }
 
-  extra(extra) {
-    if (typeof extra === 'undefined') {
+  extra(value) {
+    if (typeof value === 'undefined') {
       return this._extraBase;
     }
 
-    this._extraBase = extra;
+    this._extraBase = value;
     return this;
   }
 
-  direction(direction) {
-    this._body.attr('dir', direction);
-    this._direction = direction === 'rtl' ? -1 : 1;
+  direction(value) {
+    this._body.attr('dir', value);
+    this._direction = value === 'rtl' ? -1 : 1;
 
     return this;
   }
 
-  id(id) {
-    this._id = id;
+  id(value) {
+    this._id = value;
     return this;
   }
 
-  empty(empty) {
-    this._empty = empty;
+  empty(value) {
+    this._empty = value;
     return this;
   }
 
-  header(header) {
-    this._header = header;
+  header(value) {
+    this._header = value;
     return this;
   }
 
-  enter(enter) {
-    this._enter = enter;
+  enter(value) {
+    this._enter = value;
     return this;
   }
 
-  change(change) {
-    this._change = change;
+  change(value) {
+    this._change = value;
     return this;
   }
 
-  scroll(scroll) {
-    this._scroll = scroll;
+  scroll(value) {
+    this._scroll = value;
     return this;
   }
 
@@ -225,20 +225,20 @@ export default class Scroller {
     return this;
   }
 
-  offset(offset) {
-    if (typeof offset === 'undefined') {
+  offset(value) {
+    if (typeof value === 'undefined') {
       return this._offset;
     }
 
     const lastOffset = this._offset;
-    this._offset = offset;
+    this._offset = value;
 
-    if (lastOffset === 0 && offset === 0) {
+    if (lastOffset === 0 && value === 0) {
       this.render();
     } else if (this._columns) {
-      this._body.node().scrollTop = this._scrollTop(offset);
+      this._body.node().scrollTop = this._scrollTop(value);
     } else if (this._rows) {
-      this._body.node().scrollLeft = this._scrollLeft(offset);
+      this._body.node().scrollLeft = this._scrollLeft(value);
     }
 
     return this;
@@ -356,7 +356,7 @@ export default class Scroller {
 
     this._render(this._range(renderItems));
 
-    this._loadPages([...loadPages], () => {
+    this._loadPages(Array.from(loadPages), () => {
       this._render(this._range(loadItems));
 
       if (this._scroll) {
@@ -392,7 +392,7 @@ export default class Scroller {
   }
 
   sibling(callback) {
-    const items = [...this._items.values()];
+    const items = Array.from(this._items.values());
     let sibling = null;
 
     items.some((item, index) => {
@@ -438,20 +438,18 @@ export default class Scroller {
   }
 
   _loadPages(pages, callback) {
-    pages = pages || [...this._pages.keys()];
+    pages = pages || Array.from(this._pages.keys());
 
     each(pages, (index, eachCallback) => {
-      this._model
-        .set('index', index)
-        .page((error, data) => {
-          if (error) {
-            eachCallback(error);
-            return;
-          }
+      this._model.page(index, (error, data) => {
+        if (error) {
+          eachCallback(error);
+          return;
+        }
 
-          this._pages.set(index, data);
-          eachCallback();
-        });
+        this._pages.set(index, data);
+        eachCallback();
+      });
     }, callback);
   }
 

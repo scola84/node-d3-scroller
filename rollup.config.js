@@ -1,4 +1,4 @@
-import babel from 'rollup-plugin-babel';
+import buble from 'rollup-plugin-buble';
 import commonjs from 'rollup-plugin-commonjs';
 import resolve from 'rollup-plugin-node-resolve';
 
@@ -13,9 +13,9 @@ export default {
       jsnext: true,
       skip: ['d3-selection']
     }),
-    commonjs(),
-    babel({
-      presets: ['es2015-rollup']
-    })
+    commonjs({
+      exclude: ['**/node_modules/lodash-es/**']
+    }),
+    buble()
   ]
 };
