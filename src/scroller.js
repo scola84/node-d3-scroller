@@ -268,6 +268,10 @@ export default class Scroller {
       return this._span;
     }
 
+    if (!this._meta) {
+      return this;
+    }
+
     let name = '';
     let value = 0;
 
@@ -302,6 +306,10 @@ export default class Scroller {
   }
 
   render() {
+    if (!this._meta) {
+      return this;
+    }
+
     if (this._columns) {
       this._offset = this._offsetTop(this._body.node().scrollTop);
     } else if (this._rows) {
