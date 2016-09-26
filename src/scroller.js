@@ -73,9 +73,9 @@ export default class Scroller {
     this._span = this._body
       .append('div')
       .styles({
-        'height': 1,
+        'height': '1px',
         'position': 'absolute',
-        'width': 1
+        'width': '1px'
       });
 
     this.bind();
@@ -191,12 +191,12 @@ export default class Scroller {
     const calculator = select('body').append('div');
 
     this._itemHeight = parseFloat(calculator
-      .style('height', itemHeight)
+      .style('height', itemHeight + 'px')
       .style('height'));
 
     if (headerHeight) {
       this._headerHeight = parseFloat(calculator
-        .style('height', headerHeight)
+        .style('height', headerHeight + 'px')
         .style('height'));
     }
 
@@ -212,12 +212,12 @@ export default class Scroller {
     const calculator = select('body').append('div');
 
     this._itemWidth = parseFloat(calculator
-      .style('height', itemWidth)
+      .style('height', itemWidth + 'px')
       .style('height'));
 
     if (headerWidth) {
       this._headerWidth = parseFloat(calculator
-        .style('height', headerWidth)
+        .style('height', headerWidth + 'px')
         .style('height'));
     }
 
@@ -290,7 +290,7 @@ export default class Scroller {
       }
     }
 
-    this._span.style(name, value);
+    this._span.style(name, value + 'px');
     return this;
   }
 
@@ -517,15 +517,12 @@ export default class Scroller {
         top = Math.floor(i / this._columns) * this._itemHeight;
         top += (groupIndex + 1) * this._headerHeight;
 
-        left += '%';
-        width += '%';
-
         item.root().styles({
-          height: this._itemHeight,
-          left,
+          'height': this._itemHeight + 'px',
+          'left': left + '%',
           'position': 'absolute',
-          top,
-          width
+          'top': top + 'px',
+          'width': width + '%'
         });
       } else if (this._rows) {
         height = 100 / this._rows;
@@ -534,15 +531,12 @@ export default class Scroller {
         left += (groupIndex + 1) * this._headerWidth;
         top = (i % this._rows) * height;
 
-        height += '%';
-        top += '%';
-
         item.root().styles({
-          height,
-          [style]: left,
+          'height': height + '%',
+          [style]: left + 'px',
           'position': 'absolute',
-          top,
-          width: this._itemWidth
+          'top': top + '%',
+          'width': this._itemWidth + 'px'
         });
       }
 
@@ -554,17 +548,17 @@ export default class Scroller {
 
         if (this._columns) {
           header.root().styles({
-            'left': 0,
+            'left': '0px',
             'position': 'absolute',
-            'top': top - this._headerHeight,
-            width
+            'top': (top - this._headerHeight) + 'px',
+            'width': width + '%'
           });
         } else if (this._rows) {
           header.root().styles({
-            height,
-            [style]: left - this._headerWidth,
+            'height': height + '%',
+            [style]: (left - this._headerWidth) + 'px',
             'position': 'absolute',
-            'top': 0
+            'top': '0px'
           });
         }
 
