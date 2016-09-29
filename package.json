@@ -24,8 +24,8 @@
     "build": "npm run cleanup && npm run rollup",
     "build:min": "npm run build && npm run min",
     "cleanup": "rm -rf dist",
-    "min": "npm run min:js && gzip -9 -k dist/*",
-    "min:js": "uglifyjs dist/d3-scroller.js -m -o dist/d3-scroller.min.js",
-    "rollup": "rollup -c -n d3 -o dist/d3-scroller.js"
+    "min": "uglifyjs dist/d3-scroller.js -m -o dist/d3-scroller.min.js",
+    "prepublish": "npm run build:min",
+    "rollup": "rollup -c"
   }
 }
