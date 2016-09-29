@@ -1,6 +1,7 @@
 import { select } from 'd3-selection';
 import debounce from 'lodash-es/debounce.js';
 import each from 'async/each';
+import 'd3-selection-multi';
 
 export default class Scroller {
   constructor() {
