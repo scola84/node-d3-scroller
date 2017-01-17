@@ -107,8 +107,8 @@ export default class Scroller {
     return this._items.get(id);
   }
 
-  model(value) {
-    if (typeof value === 'undefined') {
+  model(value = null) {
+    if (value === null) {
       return this._model;
     }
 
@@ -116,8 +116,8 @@ export default class Scroller {
     return this;
   }
 
-  columns(value) {
-    if (typeof value === 'undefined') {
+  columns(value = null) {
+    if (value === null) {
       return this._columns;
     }
 
@@ -127,8 +127,8 @@ export default class Scroller {
     return this;
   }
 
-  rows(value) {
-    if (typeof value === 'undefined') {
+  rows(value = null) {
+    if (value === null) {
       return this._rows;
     }
 
@@ -138,8 +138,8 @@ export default class Scroller {
     return this;
   }
 
-  extra(value) {
-    if (typeof value === 'undefined') {
+  extra(value = null) {
+    if (value === null) {
       return this._extraBase;
     }
 
@@ -147,45 +147,73 @@ export default class Scroller {
     return this;
   }
 
-  direction(value) {
+  direction(value = null) {
+    if (value === null) {
+      return this._direction === -1 ? 'rtl' : 'ltr';
+    }
+
     this._body.attr('dir', value);
     this._direction = value === 'rtl' ? -1 : 1;
 
     return this;
   }
 
-  id(value) {
+  id(value = null) {
+    if (value === null) {
+      return this._id;
+    }
+
     this._id = value;
     return this;
   }
 
-  empty(value) {
+  empty(value = null) {
+    if (value === null) {
+      return this._empty;
+    }
+
     this._empty = value;
     return this;
   }
 
-  header(value) {
+  header(value = null) {
+    if (value === null) {
+      return this._header;
+    }
+
     this._header = value;
     return this;
   }
 
-  enter(value) {
+  enter(value = null) {
+    if (value === null) {
+      return this._enter;
+    }
+
     this._enter = value;
     return this;
   }
 
-  change(value) {
+  change(value = null) {
+    if (value === null) {
+      return this._change;
+    }
+
     this._change = value;
     return this;
   }
 
-  scroll(value) {
+  scroll(value = null) {
+    if (value === null) {
+      return this._scroll;
+    }
+
     this._scroll = value;
     return this;
   }
 
-  height(itemHeight, headerHeight) {
-    if (typeof itemHeight === 'undefined') {
+  height(itemHeight = null, headerHeight = null) {
+    if (itemHeight === null) {
       return [this._itemHeight, this._headerHeight];
     }
 
@@ -205,8 +233,8 @@ export default class Scroller {
     return this;
   }
 
-  width(itemWidth, headerWidth) {
-    if (typeof itemWidth === 'undefined') {
+  width(itemWidth = null, headerWidth = null) {
+    if (itemWidth === null) {
       return [this._itemWidth, this._headerWidth];
     }
 
@@ -226,8 +254,8 @@ export default class Scroller {
     return this;
   }
 
-  offset(value) {
-    if (typeof value === 'undefined') {
+  offset(value = null) {
+    if (value === null) {
       return this._offset;
     }
 
@@ -245,8 +273,8 @@ export default class Scroller {
     return this;
   }
 
-  count(action) {
-    if (typeof action === 'undefined') {
+  count(action = null) {
+    if (action === null) {
       return this._bodyCount;
     }
 
@@ -264,8 +292,8 @@ export default class Scroller {
     return this;
   }
 
-  span(action) {
-    if (typeof action === 'undefined') {
+  span(action = null) {
+    if (action === null) {
       return this._span;
     }
 
