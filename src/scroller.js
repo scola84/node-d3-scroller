@@ -18,6 +18,7 @@ export default class Scroller {
     this._range = null;
     this._step = null;
     this._ticks = false;
+    this._keyDelta = 1;
 
     this._scale = scaleLinear()
       .clamp(true);
@@ -102,13 +103,17 @@ export default class Scroller {
 
     this._handleDrag = () => this._drag();
     this._handleInterrupt = () => this._interrupt();
+    this._handleKeyUp = () => this._keyUp();
+    this._handleKeyDown = () => this._keyDown();
     this._handleWheel = () => this._wheel();
 
     this._bindArea();
+    this._bindKnob();
   }
 
   destroy() {
     this._unbindArea();
+    this._unbindKnob();
 
     this._root.dispatch('destroy');
     this._root.remove();
@@ -226,22 +231,51 @@ export default class Scroller {
     this._area.on('wheel.scola-list', null);
   }
 
+  _bindKnob() {
+    this._knob.on('keydown', this._handleKeyDown);
+    this._knob.on('keyup', this._handleKeyUp);
+  }
+
+  _unbindKnob() {
+    this._knob.on('keydown', null);
+    this._knob.on('keyup', null);
+  }
+
   _drag() {
-    let value = this._scale.invert(event.x);
-
-    if (this._step) {
-      value = Math.round(value / this._step) * this._step;
-    }
-
-    if (this._modifier) {
-      value = this._modifier(value);
-    }
-
-    this.value(value);
+    this._set(event.x, 0);
   }
 
   _interrupt() {
     this._area.interrupt();
+  }
+
+  _keyUp() {
+    this._keyDelta = 1;
+  }
+
+  _keyDown() {
+    let delta = 0;
+    let left = parseFloat(this._knob.style('left'));
+    const width = parseFloat(this._area.style('width'));
+
+    if (event.keyCode === 40) {
+      delta += this._keyDelta;
+    } else if (event.keyCode === 38) {
+      delta -= this._keyDelta;
+    } else if (event.keyCode === 36) {
+      delta = width;
+    } else if (event.keyCode === 35) {
+      delta = -width;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+
+    this._keyDelta = Math.max(this._keyDelta + 1, 20);
+    left -= delta;
+
+    this._set(left, delta);
   }
 
   _wheel() {
@@ -250,13 +284,20 @@ export default class Scroller {
     let left = parseFloat(this._knob.style('left'));
     left -= event.deltaY;
 
+    this._set(left, event.deltaY);
+  }
+
+  _set(left, delta) {
     let value = this._scale.invert(left);
 
     if (this._step) {
-      if (event.deltaY < 0) {
+      if (delta < 0) {
         value = Math.ceil(value / this._step) * this._step;
-      } else {
+      } else if (delta > 0) {
         value = Math.floor(value / this._step) * this._step;
+      } else {
+        console.log('equal');
+        value = Math.round(value / this._step) * this._step;
       }
     }
 
