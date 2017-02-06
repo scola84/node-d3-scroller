@@ -18,7 +18,9 @@ export default class Scroller {
     this._range = null;
     this._step = null;
     this._ticks = false;
+
     this._keyDelta = 1;
+    this._scrollValue = 0;
 
     this._scale = scaleLinear()
       .clamp(true);
@@ -102,7 +104,6 @@ export default class Scroller {
       });
 
     this._handleDrag = () => this._drag();
-    this._handleInterrupt = () => this._interrupt();
     this._handleKeyUp = () => this._keyUp();
     this._handleKeyDown = () => this._keyDown();
     this._handleWheel = () => this._wheel();
@@ -188,10 +189,11 @@ export default class Scroller {
   }
 
   value(scrollValue, emit = true) {
-    if (!this._domain) {
+    if (!this._domain || this._value === scrollValue) {
       return this;
     }
 
+    this._value = scrollValue;
     const scrollPosition = this._scale(scrollValue);
 
     this._knob.styles({
@@ -219,7 +221,6 @@ export default class Scroller {
 
   _bindArea() {
     this._dragger = drag()
-      .on('start.interrupt', this._handleInterrupt)
       .on('start drag', this._handleDrag);
 
     this._area.call(this._dragger);
@@ -243,10 +244,6 @@ export default class Scroller {
 
   _drag() {
     this._set(event.x, 0);
-  }
-
-  _interrupt() {
-    this._area.interrupt();
   }
 
   _keyUp() {
