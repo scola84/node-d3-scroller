@@ -1,90 +1,114 @@
-import { select } from 'd3-selection';
-import debounce from 'lodash-es/debounce.js';
-import each from 'async/each';
+/* eslint prefer-reflect: "off" */
+
+import {
+  drag,
+  event,
+  range,
+  scaleLinear,
+  select
+} from 'd3';
+
 import 'd3-selection-multi';
 
 export default class Scroller {
   constructor() {
-    this._model = null;
+    this._domain = null;
+    this._modifier = null;
 
-    this._columns = 0;
-    this._rows = 0;
+    this._range = null;
+    this._step = null;
+    this._ticks = false;
 
-    this._extraBase = 1;
-    this._extra = 1;
-
-    this._bodyHeight = 0;
-    this._bodyWidth = 0;
-
-    this._headerHeight = 32;
-    this._headerWidth = 32;
-
-    this._itemHeight = 48;
-    this._itemWidth = 48;
-
-    this._direction = 1;
-
-    this._offset = 0;
-    this._bodyCount = 0;
-    this._pageCount = 0;
-
-    this._meta = null;
-
-    this._id = null;
-    this._empty = null;
-    this._header = null;
-    this._enter = null;
-    this._change = null;
-    this._scroll = null;
-
-    this._message = null;
-    this._headers = new Map();
-    this._items = new Map();
-
-    this._pages = new Map();
-
-    this._handleResize = () => this.resize();
-    this._handleScroll = () => this.render();
-
-    this._window = select(window);
+    this._scale = scaleLinear()
+      .clamp(true);
 
     this._root = select('body')
       .append('div')
       .remove()
       .classed('scola scroller', true)
       .styles({
+        'height': '3em',
+        'padding': '0.5em 0'
+      });
+
+    this._area = this._root
+      .append('div')
+      .classed('scola area', true)
+      .styles({
+        'align-items': 'center',
+        'cursor': 'pointer',
         'display': 'flex',
-        'flex-direction': 'column',
-        'height': '100%',
+        'flex': 1,
+        'height': '2em',
+        'position': 'relative',
+      });
+
+    this._line = this._area
+      .append('div')
+      .classed('scola line', true)
+      .styles({
+        'background': '#AAA',
+        'height': '1px',
         'position': 'absolute',
         'width': '100%'
       });
 
-    this._body = this._root
+    this._mark = this._line
       .append('div')
-      .classed('scola body', true)
+      .classed('scola mark', true)
       .styles({
-        'flex': 1,
-        'order': 2,
-        'overflow': 'auto',
-        'position': 'relative',
-        '-webkit-overflow-scrolling': 'touch'
+        'background': '#F00',
+        'height': 'inherit',
+        'width': 0
       });
 
-    this._span = this._body
+    this._tickRoot = this._area
       .append('div')
+      .classed('scola ticks', true)
       .styles({
-        'height': '1px',
+        'height': '50%',
         'position': 'absolute',
-        'width': '1px'
+        'width': '100%'
       });
 
-    this.bind();
+    this._knob = this._area
+      .append('button')
+      .classed('scola knob', true)
+      .attrs({
+        'tabindex': -1,
+        'type': 'button'
+      })
+      .styles({
+        'background': '#FFF',
+        'border': 0,
+        'border-radius': '1em',
+        'box-shadow': '0 1px 5px #AAA',
+        'cursor': 'pointer',
+        'height': '1.85em',
+        'left': '0.925em',
+        'margin': 0,
+        'margin-left': '-0.925em',
+        'opacity': 0,
+        'padding': 0,
+        'position': 'absolute',
+        'width': '1.85em'
+      });
+
+    this._padding = this._root
+      .append('div')
+      .styles({
+        'width': '1em'
+      });
+
+    this._handleDrag = () => this._drag();
+    this._handleInterrupt = () => this._interrupt();
+    this._handleWheel = () => this._wheel();
+
+    this._bindArea();
   }
 
   destroy() {
-    this.clear();
-    this.unbind();
+    this._unbindArea();
 
     this._root.dispatch('destroy');
     this._root.remove();
@@ -95,712 +119,182 @@ export default class Scroller {
     return this._root;
   }
 
-  headers() {
-    return this._headers;
-  }
-
-  items() {
-    return this._items;
-  }
-
-  item(id) {
-    return this._items.get(id);
-  }
-
-  model(value = null) {
+  domain(value = null, modifier = null) {
     if (value === null) {
-      return this._model;
+      return this._domain;
     }
 
-    this._model = value;
+    this._domain = value;
+    this._modifier = modifier;
+
+    this._scale.domain(value);
     return this;
   }
 
-  columns(value = null) {
+  size(value = null) {
     if (value === null) {
-      return this._columns;
+      return this._root.style('width');
     }
 
-    this._columns = value;
-    this._extra = this._extraBase * value;
-
-    return this;
-  }
-
-  rows(value = null) {
-    if (value === null) {
-      return this._rows;
-    }
-
-    this._rows = value;
-    this._extra = this._extraBase * value;
-
-    return this;
-  }
-
-  extra(value = null) {
-    if (value === null) {
-      return this._extraBase;
-    }
-
-    this._extraBase = value;
-    return this;
-  }
-
-  direction(value = null) {
-    if (value === null) {
-      return this._direction === -1 ? 'rtl' : 'ltr';
-    }
-
-    this._body.attr('dir', value);
-    this._direction = value === 'rtl' ? -1 : 1;
-
-    return this;
-  }
-
-  id(value = null) {
-    if (value === null) {
-      return this._id;
-    }
-
-    this._id = value;
-    return this;
-  }
-
-  empty(value = null) {
-    if (value === null) {
-      return this._empty;
-    }
-
-    this._empty = value;
-    return this;
-  }
-
-  header(value = null) {
-    if (value === null) {
-      return this._header;
-    }
-
-    this._header = value;
-    return this;
-  }
-
-  enter(value = null) {
-    if (value === null) {
-      return this._enter;
-    }
-
-    this._enter = value;
-    return this;
-  }
-
-  change(value = null) {
-    if (value === null) {
-      return this._change;
-    }
-
-    this._change = value;
-    return this;
-  }
-
-  scroll(value = null) {
-    if (value === null) {
-      return this._scroll;
-    }
-
-    this._scroll = value;
-    return this;
-  }
-
-  height(itemHeight = null, headerHeight = null) {
-    if (itemHeight === null) {
-      return [this._itemHeight, this._headerHeight];
-    }
-
-    const calculator = select('body').append('div');
-
-    this._itemHeight = parseFloat(calculator
-      .style('height', itemHeight + 'px')
-      .style('height'));
-
-    if (headerHeight) {
-      this._headerHeight = parseFloat(calculator
-        .style('height', headerHeight + 'px')
-        .style('height'));
-    }
-
-    calculator.remove();
-    return this;
-  }
-
-  width(itemWidth = null, headerWidth = null) {
-    if (itemWidth === null) {
-      return [this._itemWidth, this._headerWidth];
-    }
-
-    const calculator = select('body').append('div');
-
-    this._itemWidth = parseFloat(calculator
-      .style('height', itemWidth + 'px')
-      .style('height'));
-
-    if (headerWidth) {
-      this._headerWidth = parseFloat(calculator
-        .style('height', headerWidth + 'px')
-        .style('height'));
-    }
-
-    calculator.remove();
-    return this;
-  }
-
-  offset(value = null) {
-    if (value === null) {
-      return this._offset;
-    }
-
-    const lastOffset = this._offset;
-    this._offset = value;
-
-    if (lastOffset === 0 && value === 0) {
-      this.render();
-    } else if (this._columns) {
-      this._body.node().scrollTop = this._scrollTop(value);
-    } else if (this._rows) {
-      this._body.node().scrollLeft = this._scrollLeft(value);
-    }
-
-    return this;
-  }
-
-  count(action = null) {
-    if (action === null) {
-      return this._bodyCount;
-    }
-
-    this._bodyHeight = parseFloat(this._body.style('height'));
-    this._bodyWidth = parseFloat(this._body.style('width'));
-
-    if (this._columns) {
-      this._bodyCount = Math.round(this._bodyHeight / this._itemHeight) *
-        this._columns;
-    } else if (this._rows) {
-      this._bodyCount = Math.round(this._bodyWidth / this._itemWidth) *
-        this._rows;
-    }
-
-    return this;
-  }
-
-  span(action = null) {
-    if (action === null) {
-      return this._span;
-    }
-
-    if (!this._meta) {
-      return this;
-    }
-
-    let name = '';
-    let value = 0;
-
-    if (this._columns) {
-      name = 'top';
-      value = (this._meta.total / this._columns * this._itemHeight) +
-        (this._meta.groups.length * this._headerHeight) - 1;
-    } else if (this._rows) {
-      name = 'left';
-      value = this._meta.total / this._rows * this._itemWidth +
-        (this._meta.groups.length * this._headerWidth) - 1;
-
-      if (this._direction === -1) {
-        value -= this._body.node().offsetWidth;
-        value *= -1;
-      }
-    }
-
-    this._span.style(name, value + 'px');
-    return this;
-  }
-
-  load(callback) {
-    this._loadMeta((error) => {
-      if (error) {
-        callback(error);
-        return;
-      }
-
-      this._loadPages(null, callback);
-    });
-  }
-
-  render() {
-    if (!this._meta) {
-      return this;
-    }
-
-    if (this._columns) {
-      this._offset = this._offsetTop(this._body.node().scrollTop);
-    } else if (this._rows) {
-      this._offset = this._offsetLeft(this._body.node().scrollLeft);
-    }
-
-    const deleteItems = new Set(this._items.keys());
-    const deletePages = new Set(this._pages.keys());
-
-    const loadPages = new Set();
-
-    const loadItems = [];
-    const renderItems = [];
-
-    let i = Math.max(0, this._offset - this._extra);
-    const max = Math.min(this._meta.total,
-      this._offset + this._bodyCount + this._extra);
-
-    let pageIndex = 0;
-    let datumIndex = 0;
-    let datum = null;
-
-    for (; i < max; i += 1) {
-      pageIndex = Math.floor(i / this._pageCount);
-
-      if (this._pages.has(pageIndex) === false) {
-        loadPages.add(pageIndex);
-        loadItems.push(i);
-      } else {
-        datumIndex = i % this._pageCount;
-        datum = this._pages.get(pageIndex)[datumIndex];
-
-        renderItems.push(i);
-        deletePages.delete(pageIndex);
-        deleteItems.delete(this._id(datum));
-      }
-    }
-
-    deletePages.forEach((index) => {
-      this._pages.delete(index);
+    this._root.styles({
+      'flex': 'none',
+      'width': value
     });
 
-    deleteItems.forEach((id) => {
-      this._items.get(id).destroy();
-      this._items.delete(id);
-    });
+    return this;
+  }
 
-    this._headers.forEach((header, group) => {
-      header.destroy();
-      this._headers.delete(group);
-    });
+  step(value = null) {
+    if (value === null) {
+      return this._step;
+    }
 
-    this._render(this._range(renderItems));
+    this._step = value;
+    return this;
+  }
 
-    this._loadPages(Array.from(loadPages), () => {
-      this._render(this._range(loadItems));
+  tabindex(value = null) {
+    if (value === null) {
+      return this._knob.attr('tabindex');
+    }
 
-      if (this._scroll) {
-        this._scroll();
-      }
-    });
+    this._knob.attr('tabindex', value);
+    return this;
+  }
+
+  ticks(value = null) {
+    if (value === null) {
+      return this._ticks;
+    }
+
+    this._ticks = value;
+    return this;
   }
 
   resize() {
-    this.count(true);
-    this.render();
+    const width = parseFloat(this._area.style('width'));
+    const margin = parseFloat(this._knob.style('width')) / 2;
+
+    this._range = [margin, width - margin];
+    this._scale.range(this._range);
+
+    this._setup();
+    return this;
   }
 
-  clear() {
-    if (this._message) {
-      this._message.destroy();
-      this._message = null;
+  value(scrollValue, emit = true) {
+    if (!this._domain) {
+      return this;
     }
 
-    this._items.forEach((item) => {
-      item.destroy();
+    const scrollPosition = this._scale(scrollValue);
+
+    this._knob.styles({
+      'left': scrollPosition + 'px',
+      'opacity': 1
     });
 
-    this._headers.forEach((header) => {
-      header.destroy();
+    this._mark.styles({
+      'width': scrollPosition + 'px'
     });
 
-    this._pages.clear();
-    this._items.clear();
-    this._headers.clear();
+    if (emit === false) {
+      return this;
+    }
+
+    this._root.dispatch('scroll', {
+      detail: {
+        position: scrollPosition,
+        value: scrollValue
+      }
+    });
 
     return this;
   }
 
-  sibling(callback) {
-    const items = Array.from(this._items.values());
-    let sibling = null;
+  _bindArea() {
+    this._dragger = drag()
+      .on('start.interrupt', this._handleInterrupt)
+      .on('start drag', this._handleDrag);
 
-    items.some((item, index) => {
-      if (callback(item) === true) {
-        index += index === items.length - 1 ? -1 : 1;
-        sibling = items[index];
-      }
-
-      return Boolean(sibling);
-    });
-
-    return sibling;
+    this._area.call(this._dragger);
+    this._area.on('wheel.scola-list', this._handleWheel);
   }
 
-  bind(delay = 100) {
-    this._window.on('resize.scola-scroller',
-      debounce(this._handleResize, delay));
-    this._body.on('scroll.scola-scroller',
-      debounce(this._handleScroll, delay));
-
-    return this;
+  _unbindArea() {
+    this._area.on('.drag', null);
+    this._area.on('wheel.scola-list', null);
   }
 
-  unbind() {
-    this._window.on('resize.scola-scroller', null);
-    this._body.on('scroll.scola-scroller', null);
+  _drag() {
+    let value = this._scale.invert(event.x);
 
-    return this;
+    if (this._step) {
+      value = Math.round(value / this._step) * this._step;
+    }
+
+    if (this._modifier) {
+      value = this._modifier(value);
+    }
+
+    this.value(value);
   }
 
-  _loadMeta(callback) {
-    this._model.meta((error, data) => {
-      if (error) {
-        callback(error);
-        return;
-      }
-
-      this._meta = this._normalizeMeta(data);
-      this._pageCount = this._model.count();
-
-      callback();
-    });
+  _interrupt() {
+    this._area.interrupt();
   }
 
-  _loadPages(pages, callback) {
-    pages = pages || Array.from(this._pages.keys());
+  _wheel() {
+    event.preventDefault();
 
-    each(pages, (index, eachCallback) => {
-      this._model.page(index, (error, data) => {
-        if (error) {
-          eachCallback(error);
-          return;
-        }
+    let left = parseFloat(this._knob.style('left'));
+    left -= event.deltaY;
 
-        this._pages.set(index, data);
-        eachCallback();
-      });
-    }, callback);
-  }
+    let value = this._scale.invert(left);
 
-  _render(range) {
-    let pageIndex = 0;
-    let page = null;
-
-    let datumIndex = 0;
-    let datum = null;
-    let datumId = null;
-
-    for (let i = range[0]; i <= range[1]; i += 1) {
-      pageIndex = Math.floor(i / this._pageCount);
-      page = this._pages.get(pageIndex);
-
-      if (typeof page === 'undefined') {
-        continue;
-      }
-
-      datumIndex = i % this._pageCount;
-      datum = page[datumIndex];
-      datumId = this._id(datum);
-
-      const groupIndex = this._group(i);
-      const style = this._direction === -1 ? 'right' : 'left';
-
-      let header = null;
-      let item = null;
-
-      let width = 0;
-      let height = 0;
-
-      let top = 0;
-      let left = 0;
-
-      if (this._items.has(datumId)) {
-        item = this._items.get(datumId).first(false);
-        item = this._change ? this._change(item, datum, i) : item;
+    if (this._step) {
+      if (event.deltaY < 0) {
+        value = Math.ceil(value / this._step) * this._step;
       } else {
-        item = this._enter(datum, i);
-        this._items.set(datumId, item);
-
-        const next = this.next(i, this._pageCount, this._meta.total);
-
-        if (next) {
-          this._body.node().insertBefore(item.root().node(),
-            next.root().node());
-        } else {
-          this._body.node().appendChild(item.root().node());
-        }
-      }
-
-      if (this._columns) {
-        width = 100 / this._columns;
-
-        left = (i % this._columns) * width;
-        top = Math.floor(i / this._columns) * this._itemHeight;
-        top += (groupIndex + 1) * this._headerHeight;
-
-        item.root().styles({
-          'height': this._itemHeight + 'px',
-          'left': left + '%',
-          'position': 'absolute',
-          'top': top + 'px',
-          'width': width + '%'
-        });
-      } else if (this._rows) {
-        height = 100 / this._rows;
-
-        left = Math.floor(i / this._rows) * this._itemWidth;
-        left += (groupIndex + 1) * this._headerWidth;
-        top = (i % this._rows) * height;
-
-        item.root().styles({
-          'height': height + '%',
-          [style]: left + 'px',
-          'position': 'absolute',
-          'top': top + '%',
-          'width': this._itemWidth + 'px'
-        });
-      }
-
-      const groups = this._meta.groups;
-
-      if (groupIndex !== -1 && groups[groupIndex].begin === i) {
-        header = this._header(groups[groupIndex]);
-        item.first(true);
-
-        if (this._columns) {
-          header.root().styles({
-            'left': '0px',
-            'position': 'absolute',
-            'top': (top - this._headerHeight) + 'px',
-            'width': width + '%'
-          });
-        } else if (this._rows) {
-          header.root().styles({
-            'height': height + '%',
-            [style]: (left - this._headerWidth) + 'px',
-            'position': 'absolute',
-            'top': '0px'
-          });
-        }
-
-        this._headers.set(groups[groupIndex], header);
-        this._body.node().insertBefore(header.root().node(),
-          item.root().node());
-      } else if ((this._columns && i < this._columns) ||
-        (this._rows && i < this._rows)) {
-
-        item.first(true);
+        value = Math.floor(value / this._step) * this._step;
       }
     }
 
-    if (this._items.size === 0) {
-      if (!this._message) {
-        this._message = this._empty();
-        this._body.node().appendChild(this._message.root().node());
-      }
-    } else if (this._message) {
-      this._message.destroy();
-      this._message = null;
+    if (this._modifier) {
+      value = this._modifier(value);
     }
+
+    this.value(value);
   }
 
-  _offsetTop(scroll) {
-    const groups = this._meta.groups;
-
-    let top = 0;
-    let bottom = 0;
-
-    for (let i = 0; i < groups.length; i += 1) {
-      top = (groups[i].begin * this._itemHeight) +
-        (i * this._headerHeight);
-      bottom = ((groups[i].end + 1) * this._itemHeight) +
-        ((i + 1) * this._headerHeight);
-
-      if (scroll >= top && scroll <= bottom) {
-        return Math.max(0, groups[i].begin +
-          Math.round((scroll - top - this._headerHeight) / this._itemHeight));
-      }
+  _setup() {
+    if (!this._domain || !this._step || this._ticks === false) {
+      return;
     }
 
-    return Math.round(scroll / this._itemHeight) * this._columns;
-  }
+    const data = range(this._domain[0], this._domain[1], this._step);
 
-  _offsetLeft(scroll) {
-    scroll = this._normalizeScroll(scroll);
+    data.push(this._domain[1]);
 
-    const groups = this._meta.groups;
+    const ticks = this._tickRoot
+      .selectAll('.tick')
+      .data(data);
 
-    let left = 0;
-    let right = 0;
+    ticks.exit().remove();
 
-    for (let i = 0; i < groups.length; i += 1) {
-      left = (groups[i].begin * this._itemWidth) +
-        (i * this._headerWidth);
-      right = ((groups[i].end + 1) * this._itemWidth) +
-        ((i + 1) * this._headerWidth);
-
-      if (scroll >= left && scroll <= right) {
-        return Math.max(0, groups[i].begin +
-          Math.round((scroll - left - this._headerWidth) /
-            this._itemWidth));
-      }
-    }
-
-    return Math.round(scroll / this._itemWidth) * this._rows;
-  }
-
-  _scrollTop(offset) {
-    const groups = this._meta.groups;
-
-    let top = 0;
-
-    for (let i = 0; i < groups.length; i += 1) {
-      top = (groups[i].begin * this._itemHeight) + (i * this._headerHeight);
-
-      if (offset >= groups[i].begin && offset <= groups[i].end) {
-        if (offset > 0) {
-          top += ((offset - groups[i].begin) * this._itemHeight) +
-            this._headerHeight;
-        }
-
-        if (offset !== groups[i].begin) {
-          top += 1;
-        }
-
-        return top;
-      }
-    }
-
-    return (offset * this._itemHeight) + (offset === 0 ? 0 : 1);
-  }
-
-  _scrollLeft(offset) {
-    const groups = this._meta.groups;
-
-    let left = 0;
-
-    for (let i = 0; i < groups; i += 1) {
-      left = (groups[i].begin * this._itemWidth) + (i * this._headerWidth);
-
-      if (offset >= groups[i].begin && offset <= groups[i].end) {
-        if (offset > 0) {
-          left += ((offset - groups[i].begin) * this._itemWidth) +
-            this._headerWidth;
-        }
-
-        if (offset !== groups[i].begin) {
-          left += 1;
-        }
-
-        break;
-      }
-    }
-
-    if (left === 0) {
-      left = (offset * this._itemWidth) + (offset === 0 ? 0 : 1);
-    }
-
-    return this._normalizeScroll(left);
-  }
-
-  previous(index, count) {
-    index -= 1;
-    let item = null;
-
-    for (; index >= 0; index -= 1) {
-      item = this._item(index, count);
-
-      if (item) {
-        return item;
-      }
-    }
-
-    return null;
-  }
-
-  next(index, count, total) {
-    index += 1;
-    total = total || this._meta.total;
-
-    let item = null;
-
-    for (; index < total; index += 1) {
-      item = this._item(index, count);
-
-      if (item) {
-        return item;
-      }
-    }
-
-    return null;
-  }
-
-  _item(index, count) {
-    count = count || this._pageCount;
-
-    const pageIndex = Math.floor(index / count);
-    const page = this._pages.get(pageIndex);
-
-    if (typeof page === 'undefined') {
-      return null;
-    }
-
-    const datumIndex = index % count;
-    const datum = page[datumIndex];
-
-    return this._items.get(this._id(datum));
-  }
-
-  _group(index) {
-    const groups = this._meta.groups;
-
-    for (let i = 0; i < groups.length; i += 1) {
-      if (index >= groups[i].begin && index < groups[i].end) {
-        return i;
-      }
-    }
-
-    return -1;
-  }
-
-  _normalizeScroll(scroll) {
-    if (this._direction === -1) {
-      return this._body.node().scrollWidth -
-        this._body.node().offsetWidth - scroll;
-    }
-
-    return scroll;
-  }
-
-  _normalizeMeta(data) {
-    data = Object.assign({}, data);
-
-    if (typeof data.groups === 'undefined') {
-      data.groups = [];
-    }
-
-    if (typeof data.total === 'undefined') {
-      data.total = 0;
-
-      data.groups.forEach((group) => {
-        group.begin = data.total;
-        group.end = data.total + group.total;
-        data.total = group.end;
+    ticks
+      .enter()
+      .append('div')
+      .merge(ticks)
+      .classed('scola tick', true)
+      .styles({
+        'background': '#AAA',
+        'height': '100%',
+        'position': 'absolute',
+        'width': '1px'
+      })
+      .style('left', (datum) => {
+        return this._scale(datum) + 'px';
       });
-    }
-
-    return data;
-  }
-
-  _range(numbers) {
-    return [numbers[0], numbers[numbers.length - 1]];
   }
 }
