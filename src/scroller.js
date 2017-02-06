@@ -20,7 +20,7 @@ export default class Scroller {
     this._ticks = false;
 
     this._keyDelta = 1;
-    this._scrollValue = 0;
+    this._value = 0;
 
     this._scale = scaleLinear()
       .clamp(true);
