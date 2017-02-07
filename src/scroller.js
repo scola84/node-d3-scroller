@@ -20,7 +20,6 @@ export default class Scroller {
     this._ticks = false;
 
     this._keyDelta = 1;
-    this._value = 0;
 
     this._scale = scaleLinear()
       .clamp(true);
@@ -60,7 +59,7 @@ export default class Scroller {
       .append('div')
       .classed('scola mark', true)
       .styles({
-        'background': '#F00',
+        'background': '#007AFF',
         'height': 'inherit',
         'width': 0
       });
@@ -189,11 +188,10 @@ export default class Scroller {
   }
 
   value(scrollValue, emit = true) {
-    if (!this._domain || this._value === scrollValue) {
+    if (!this._domain) {
       return this;
     }
 
-    this._value = scrollValue;
     const scrollPosition = this._scale(scrollValue);
 
     this._knob.styles({
