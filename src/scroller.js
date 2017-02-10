@@ -8,8 +8,6 @@ import {
   select
 } from 'd3';
 
-import 'd3-selection-multi';
-
 export default class Scroller {
   constructor() {
     this._domain = null;
@@ -101,11 +99,6 @@ export default class Scroller {
       .styles({
         'width': '1em'
       });
-
-    this._handleDrag = () => this._drag();
-    this._handleKeyUp = () => this._keyUp();
-    this._handleKeyDown = () => this._keyDown();
-    this._handleWheel = () => this._wheel();
 
     this._bindArea();
     this._bindKnob();
@@ -219,10 +212,10 @@ export default class Scroller {
 
   _bindArea() {
     this._dragger = drag()
-      .on('start drag', this._handleDrag);
+      .on('start drag', () => this._drag());
 
     this._area.call(this._dragger);
-    this._area.on('wheel.scola-list', this._handleWheel);
+    this._area.on('wheel.scola-list', () => this._wheel());
   }
 
   _unbindArea() {
@@ -231,8 +224,8 @@ export default class Scroller {
   }
 
   _bindKnob() {
-    this._knob.on('keydown', this._handleKeyDown);
-    this._knob.on('keyup', this._handleKeyUp);
+    this._knob.on('keydown', () => this._keyDown());
+    this._knob.on('keyup', () => this._keyUp());
   }
 
   _unbindKnob() {
@@ -291,7 +284,6 @@ export default class Scroller {
       } else if (delta > 0) {
         value = Math.floor(value / this._step) * this._step;
       } else {
-        console.log('equal');
         value = Math.round(value / this._step) * this._step;
       }
     }
