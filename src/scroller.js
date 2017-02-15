@@ -8,16 +8,24 @@ import {
   select
 } from 'd3';
 
+import debounce from 'lodash-es/debounce';
+
 export default class Scroller {
   constructor() {
+    this._name = null;
+    this._model = null;
     this._domain = null;
-    this._modifier = null;
+
+    this._orientation = null;
+    this._positionProperty = null;
+    this._sizeProperty = null;
 
     this._range = null;
     this._step = null;
     this._ticks = false;
 
     this._keyDelta = 1;
+    this._debounce = null;
 
     this._scale = scaleLinear()
       .clamp(true);
@@ -27,51 +35,34 @@ export default class Scroller {
       .remove()
       .classed('scola scroller', true)
       .styles({
-        'height': '3em',
-        'padding': '0.5em 0'
-      });
-
-    this._area = this._root
-      .append('div')
-      .classed('scola area', true)
-      .styles({
-        'align-items': 'center',
         'cursor': 'pointer',
         'display': 'flex',
-        'flex': 1,
-        'height': '2em',
         'position': 'relative',
       });
 
-    this._line = this._area
+    this._line = this._root
       .append('div')
       .classed('scola line', true)
       .styles({
         'background': '#AAA',
-        'height': '1px',
-        'position': 'absolute',
-        'width': '100%'
+        'position': 'absolute'
       });
 
     this._mark = this._line
       .append('div')
       .classed('scola mark', true)
       .styles({
-        'background': '#007AFF',
-        'height': 'inherit',
-        'width': 0
+        'background': '#007AFF'
       });
 
-    this._tickRoot = this._area
+    this._tickRoot = this._root
       .append('div')
       .classed('scola ticks', true)
       .styles({
-        'height': '50%',
-        'position': 'absolute',
-        'width': '100%'
+        'position': 'absolute'
       });
 
-    this._knob = this._area
+    this._knob = this._root
       .append('button')
       .classed('scola knob', true)
       .attrs({
@@ -81,32 +72,28 @@ export default class Scroller {
       .styles({
         'background': '#FFF',
         'border': 0,
-        'border-radius': '1em',
+        'border-radius': '50%',
         'box-shadow': '0 1px 5px #AAA',
         'cursor': 'pointer',
-        'height': '1.85em',
-        'left': '0.925em',
         'margin': 0,
-        'margin-left': '-0.925em',
         'opacity': 0,
         'padding': 0,
-        'position': 'absolute',
-        'width': '1.85em'
+        'position': 'absolute'
       });
 
-    this._padding = this._root
-      .append('div')
-      .styles({
-        'width': '1em'
-      });
+    this._handleSet = (e) => this._set(e);
 
-    this._bindArea();
+    this._bindRoot();
     this._bindKnob();
+
+    this.debounce();
   }
 
   destroy() {
-    this._unbindArea();
+    this._unbindRoot();
     this._unbindKnob();
+    this._unbindModel();
+    this._deleteDebounce();
 
     this._root.dispatch('destroy');
     this._root.remove();
@@ -117,27 +104,35 @@ export default class Scroller {
     return this._root;
   }
 
-  domain(value = null, modifier = null) {
+  name(value) {
+    if (value === null) {
+      return this._name;
+    }
+
+    this._name = value;
+    return this;
+  }
+
+  model(value) {
+    this._model = value;
+
+    this._bindModel();
+    this._set({
+      name: this._name,
+      scope: 'model',
+      value: value.get(this._name)
+    });
+
+    return this;
+  }
+
+  domain(value = null) {
     if (value === null) {
       return this._domain;
     }
 
     this._domain = value;
-    this._modifier = modifier;
-
     this._scale.domain(value);
-    return this;
-  }
-
-  size(value = null) {
-    if (value === null) {
-      return this._root.style('width');
-    }
-
-    this._root.styles({
-      'flex': 'none',
-      'width': value
-    });
 
     return this;
   }
@@ -151,15 +146,6 @@ export default class Scroller {
     return this;
   }
 
-  tabindex(value = null) {
-    if (value === null) {
-      return this._knob.attr('tabindex');
-    }
-
-    this._knob.attr('tabindex', value);
-    return this;
-  }
-
   ticks(value = null) {
     if (value === null) {
       return this._ticks;
@@ -169,58 +155,162 @@ export default class Scroller {
     return this;
   }
 
-  resize() {
-    const width = parseFloat(this._area.style('width'));
-    const margin = parseFloat(this._knob.style('width')) / 2;
+  tabindex(value = null) {
+    if (value === null) {
+      return this._knob.attr('tabindex');
+    }
 
-    this._range = [margin, width - margin];
-    this._scale.range(this._range);
-
-    this._setup();
+    this._knob.attr('tabindex', value);
     return this;
   }
 
-  value(scrollValue, emit = true) {
-    if (!this._domain) {
-      return this;
+  debounce(delay = 100) {
+    if (delay === false) {
+      return this._deleteDebounce();
     }
 
-    const scrollPosition = this._scale(scrollValue);
+    if (this._debounced) {
+      this._deleteDebounce();
+    }
 
-    this._knob.styles({
-      'left': scrollPosition + 'px',
-      'opacity': 1
+    return this._insertDebounce(delay);
+  }
+
+  line(action = true) {
+    this._line
+      .style('display', action ? 'initial' : 'none');
+
+    return this;
+  }
+
+  horizontal(height = '2em') {
+    this._orientation = 'x';
+    this._positionProperty = 'left';
+    this._sizeProperty = 'width';
+
+    this._root.styles({
+      'align-items': 'center',
+      height,
+      'justify-content': 'initial',
+      'width': '100%'
+    });
+
+    this._line.styles({
+      'height': '1px',
+      'width': '100%'
     });
 
     this._mark.styles({
-      'width': scrollPosition + 'px'
+      'height': '100%',
+      'width': 'initial'
     });
 
-    if (emit === false) {
-      return this;
-    }
-
-    this._root.dispatch('scroll', {
-      detail: {
-        position: scrollPosition,
-        value: scrollValue
-      }
+    this._tickRoot.styles({
+      'height': '50%',
+      'width': '100%'
     });
 
     return this;
   }
 
-  _bindArea() {
-    this._dragger = drag()
-      .on('start drag', () => this._drag());
+  vertical(width = '2em') {
+    this._orientation = 'y';
+    this._positionProperty = 'top';
+    this._sizeProperty = 'height';
 
-    this._area.call(this._dragger);
-    this._area.on('wheel.scola-list', () => this._wheel());
+    this._root.styles({
+      'align-items': 'initial',
+      'height': '100%',
+      'justify-content': 'center',
+      width
+    });
+
+    this._line.styles({
+      'height': '100%',
+      'width': '1px'
+    });
+
+    this._mark.styles({
+      'height': 'initial',
+      'width': '100%'
+    });
+
+    this._tickRoot.styles({
+      'height': '100%',
+      'width': '50%'
+    });
+
+    return this;
   }
 
-  _unbindArea() {
-    this._area.on('.drag', null);
-    this._area.on('wheel.scola-list', null);
+  resize() {
+    this._resizeKnob();
+    this._resizeTicks();
+
+    this._set({
+      name: this._name,
+      value: this._model.get(this._name)
+    });
+
+    return this;
+  }
+
+  down() {
+    if (!this._step) {
+      return;
+    }
+
+    const value = this._model.get(this._name) - this._step;
+
+    if (value < this._domain[0] || value > this._domain[1]) {
+      return;
+    }
+
+    this._model.set(this._name, value);
+  }
+
+  up() {
+    if (!this._step) {
+      return;
+    }
+
+    const value = this._model.get(this._name) + this._step;
+
+    if (value < this._domain[0] || value > this._domain[1]) {
+      return;
+    }
+
+    this._model.set(this._name, value);
+  }
+
+  _bindRoot() {
+    this._gesture = this._root
+      .gesture()
+      .on('panstart', (e) => e.stopPropagation())
+      .on('panright', (e) => e.stopPropagation())
+      .on('panleft', (e) => e.stopPropagation())
+      .on('panend', (e) => e.stopPropagation())
+      .on('swiperight', (e) => e.stopPropagation())
+      .on('swipeleft', (e) => e.stopPropagation());
+
+    this._dragger = drag()
+      .container(this._root.node())
+      .on('start', () => this._start())
+      .on('drag', () => this._drag())
+      .on('end', () => this._end());
+
+    this._root.call(this._dragger);
+    this._root.on('wheel.scola-list', () => this._wheel());
+  }
+
+  _unbindRoot() {
+    if (this._gesture) {
+      this._gesture.destroy();
+      this._gesture = null;
+    }
+
+    this._root.on('.drag', null);
+    this._root.on('wheel.scola-list', null);
   }
 
   _bindKnob() {
@@ -233,8 +323,32 @@ export default class Scroller {
     this._knob.on('keyup', null);
   }
 
+  _bindModel() {
+    if (this._model) {
+      this._model.setMaxListeners(this._model.getMaxListeners() + 1);
+      this._model.addListener('set', this._handleSet);
+    }
+  }
+
+  _unbindModel() {
+    if (this._model) {
+      this._model.setMaxListeners(this._model.getMaxListeners() - 1);
+      this._model.removeListener('set', this._handleSet);
+    }
+  }
+
+  _start() {
+    this._root.dispatch('start');
+    this._drag();
+  }
+
   _drag() {
-    this._set(event.x, 0);
+    const position = event[this._orientation];
+    this._change(position, 0);
+  }
+
+  _end() {
+    this._root.dispatch('end');
   }
 
   _keyUp() {
@@ -243,59 +357,152 @@ export default class Scroller {
 
   _keyDown() {
     let delta = 0;
-    let left = parseFloat(this._knob.style('left'));
-    const width = parseFloat(this._area.style('width'));
+    let arrow = false;
 
-    if (event.keyCode === 40) {
-      delta += this._keyDelta;
-    } else if (event.keyCode === 38) {
-      delta -= this._keyDelta;
-    } else if (event.keyCode === 36) {
-      delta = width;
-    } else if (event.keyCode === 35) {
-      delta = -width;
-    } else {
+    const position = parseFloat(this._knob.style(this._positionProperty));
+
+    [delta, arrow] = this._deltaArrow(event.keyCode);
+
+    if (delta === 0) {
       return;
     }
 
     event.preventDefault();
 
-    this._keyDelta = Math.max(this._keyDelta + 1, 20);
-    left -= delta;
+    if (arrow === true) {
+      delta = this._delta(delta);
 
-    this._set(left, delta);
+      if (delta === 0) {
+        return;
+      }
+    }
+
+    this._keyDelta = Math.max(this._keyDelta + 1, 20);
+    this._change(position - delta, delta);
+  }
+
+  _deltaArrow(keyCode) {
+    let delta = 0;
+    let arrow = false;
+
+    const size = parseFloat(this._root.style(this._sizeProperty));
+
+    if (keyCode === 40) {
+      delta = this._keyDelta;
+      arrow = true;
+    } else if (keyCode === 38) {
+      delta = -this._keyDelta;
+      arrow = true;
+    } else if (keyCode === 36) {
+      delta = size;
+    } else if (keyCode === 35) {
+      delta = -size;
+    } else {
+      delta = 0;
+    }
+
+    return [delta, arrow];
+  }
+
+  _delta(delta) {
+    delta *= this._orientation === 'x' ? 1 : -1;
+
+    if (this._step) {
+      if (delta < 0) {
+        this.up();
+      } else {
+        this.down();
+      }
+
+      return 0;
+    }
+
+    return delta;
   }
 
   _wheel() {
     event.preventDefault();
 
-    let left = parseFloat(this._knob.style('left'));
-    left -= event.deltaY;
+    const delta = this._orientation === 'x' ?
+      event.deltaY : -event.deltaY;
 
-    this._set(left, event.deltaY);
+    const position = parseFloat(this._knob.style(this._positionProperty)) -
+      delta;
+
+    this._change(position, delta);
   }
 
-  _set(left, delta) {
-    let value = this._scale.invert(left);
+  _change(position, delta) {
+    let value = this._scale.invert(position);
 
     if (this._step) {
+      value /= this._step;
+
       if (delta < 0) {
-        value = Math.ceil(value / this._step) * this._step;
+        value = Math.ceil(value);
       } else if (delta > 0) {
-        value = Math.floor(value / this._step) * this._step;
+        value = Math.floor(value);
       } else {
-        value = Math.round(value / this._step) * this._step;
+        value = Math.round(value);
       }
+
+      value *= this._step;
     }
 
-    if (this._modifier) {
-      value = this._modifier(value);
+    if (this._debounced) {
+      this._debounced(() => this._model.set(this._name, value));
     }
 
-    this.value(value);
+    this._set({
+      name: this._name,
+      value
+    });
   }
 
-  _setup() {
+  _set(setEvent) {
+    if (setEvent.name !== this._name || !this._domain) {
+      return;
+    }
+
+    const position = this._scale(setEvent.value);
+
+    this._knob.style(this._positionProperty, position + 'px');
+    this._knob.style('opacity', 1);
+    this._mark.style(this._sizeProperty, position + 'px');
+  }
+
+  _resizeKnob() {
+    const height = parseFloat(this._root.style('height'));
+    const width = parseFloat(this._root.style('width'));
+
+    let areaSize = width;
+    let knobSize = height;
+
+    let margin = knobSize / 2;
+    let marginLeft = margin;
+    let marginTop = 0;
+
+    if (this._orientation === 'y') {
+      areaSize = height;
+      knobSize = width;
+
+      margin = knobSize / 2;
+      marginLeft = 0;
+      marginTop = margin;
+    }
+
+    this._range = [margin, areaSize - margin];
+    this._scale.range(this._range);
+
+    this._knob.styles({
+      'width': knobSize + 'px',
+      'height': knobSize + 'px',
+      'margin-left': -marginLeft + 'px',
+      'margin-top': -marginTop + 'px'
+    });
+  }
+
+  _resizeTicks() {
     if (!this._domain || !this._step || this._ticks === false) {
       return;
     }
@@ -308,7 +515,9 @@ export default class Scroller {
       .selectAll('.tick')
       .data(data);
 
-    ticks.exit().remove();
+    ticks
+      .exit()
+      .remove();
 
     ticks
       .enter()
@@ -321,8 +530,22 @@ export default class Scroller {
         'position': 'absolute',
         'width': '1px'
       })
-      .style('left', (datum) => {
+      .style(this._positionProperty, (datum) => {
         return this._scale(datum) + 'px';
       });
+  }
+
+  _insertDebounce(delay) {
+    this._debounced = debounce((f) => f(), delay);
+    return this;
+  }
+
+  _deleteDebounce() {
+    if (this._debounced) {
+      this._debounced.cancel();
+      this._debounced = null;
+    }
+
+    return this;
   }
 }
