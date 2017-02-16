@@ -23,9 +23,10 @@ export default class Scroller {
     this._range = null;
     this._step = null;
     this._ticks = false;
+    this._debounced = null;
 
     this._keyDelta = 1;
-    this._debounce = null;
+    this._scrolling = false;
 
     this._scale = scaleLinear()
       .clamp(true);
@@ -102,6 +103,10 @@ export default class Scroller {
 
   root() {
     return this._root;
+  }
+
+  scrolling() {
+    return this._scrolling;
   }
 
   name(value) {
@@ -338,6 +343,7 @@ export default class Scroller {
   }
 
   _start() {
+    this._scrolling = true;
     this._root.dispatch('start');
     this._drag();
   }
@@ -348,6 +354,7 @@ export default class Scroller {
   }
 
   _end() {
+    this._scrolling = false;
     this._root.dispatch('end');
   }
 
