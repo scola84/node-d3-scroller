@@ -210,6 +210,10 @@ export default class Scroller {
       'width': 'initial'
     });
 
+    this._knob.styles({
+      'top': 0
+    });
+
     this._tickRoot.styles({
       'height': '50%',
       'width': '100%'
@@ -238,6 +242,10 @@ export default class Scroller {
     this._mark.styles({
       'height': 'initial',
       'width': '100%'
+    });
+
+    this._knob.styles({
+      'left': 0
     });
 
     this._tickRoot.styles({
