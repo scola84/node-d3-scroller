@@ -94,6 +94,7 @@ export default class Scroller {
     this._unbindRoot();
     this._unbindKnob();
     this._unbindModel();
+
     this._deleteDebounce();
 
     this._root.dispatch('destroy');
@@ -109,7 +110,7 @@ export default class Scroller {
     return this._scrolling;
   }
 
-  name(value) {
+  name(value = null) {
     if (value === null) {
       return this._name;
     }
@@ -118,7 +119,11 @@ export default class Scroller {
     return this;
   }
 
-  model(value) {
+  model(value = null) {
+    if (value === null) {
+      return this._model;
+    }
+
     this._model = value;
 
     this._bindModel();
@@ -138,6 +143,10 @@ export default class Scroller {
 
     this._domain = value;
     this._scale.domain(value);
+
+    if (this._model.get(this._name) > value[1]) {
+      this._model.set(this._name, value[1]);
+    }
 
     return this;
   }
@@ -257,6 +266,10 @@ export default class Scroller {
   }
 
   resize() {
+    if (!this._model) {
+      return this;
+    }
+
     this._resizeKnob();
     this._resizeTicks();
 
@@ -465,7 +478,9 @@ export default class Scroller {
     }
 
     if (this._debounced) {
-      this._debounced(() => this._model.set(this._name, value));
+      this._debounced(() => {
+        this._model.set(this._name, value, 'scroller');
+      });
     }
 
     this._set({
@@ -475,7 +490,11 @@ export default class Scroller {
   }
 
   _set(setEvent) {
-    if (setEvent.name !== this._name || !this._domain) {
+    const cancel = !this._domain ||
+      setEvent.name !== this._name ||
+      setEvent.scope === 'scroller';
+
+    if (cancel) {
       return;
     }
 
