@@ -72,7 +72,7 @@ export default class Scroller {
       })
       .styles({
         'background': '#FFF',
-        'border': 0,
+        'border': '1px solid transparent',
         'border-radius': '50%',
         'box-shadow': '0 1px 5px #AAA',
         'cursor': 'pointer',
