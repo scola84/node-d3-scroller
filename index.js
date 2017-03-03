@@ -1,5 +1,9 @@
 import Scroller from './src/scroller';
 
-export function scroller() {
+function scroller() {
   return new Scroller();
 }
+
+export {
+  scroller
+};
