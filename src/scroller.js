@@ -9,17 +9,17 @@ import {
 } from 'd3';
 
 import debounce from 'lodash-es/debounce';
+import { Observer } from '@scola/d3-model';
 
-export default class Scroller {
+export default class Scroller extends Observer {
   constructor() {
-    this._name = null;
-    this._model = null;
-    this._domain = null;
+    super();
 
     this._orientation = null;
     this._positionProperty = null;
     this._sizeProperty = null;
 
+    this._domain = null;
     this._range = null;
     this._step = null;
     this._ticks = false;
@@ -82,8 +82,6 @@ export default class Scroller {
         'position': 'absolute'
       });
 
-    this._handleSet = (e) => this._set(e);
-
     this._bindRoot();
     this._bindKnob();
 
@@ -93,7 +91,6 @@ export default class Scroller {
   destroy() {
     this._unbindRoot();
     this._unbindKnob();
-    this._unbindModel();
 
     this._deleteDebounce();
 
@@ -110,35 +107,9 @@ export default class Scroller {
     return this._scrolling;
   }
 
-  name(value = null) {
+  scale(value = null) {
     if (value === null) {
-      return this._name;
-    }
-
-    this._name = value;
-    return this;
-  }
-
-  model(value = null) {
-    if (value === null) {
-      return this._model;
-    }
-
-    this._model = value;
-
-    this._bindModel();
-    this._set({
-      name: this._name,
-      scope: 'model',
-      value: value.get(this._name)
-    });
-
-    return this;
-  }
-
-  domain(value = null) {
-    if (value === null) {
-      return this._domain;
+      return this._scale;
     }
 
     this._domain = value;
@@ -347,20 +318,6 @@ export default class Scroller {
   _unbindKnob() {
     this._knob.on('keydown', null);
     this._knob.on('keyup', null);
-  }
-
-  _bindModel() {
-    if (this._model) {
-      this._model.setMaxListeners(this._model.getMaxListeners() + 1);
-      this._model.addListener('set', this._handleSet);
-    }
-  }
-
-  _unbindModel() {
-    if (this._model) {
-      this._model.setMaxListeners(this._model.getMaxListeners() - 1);
-      this._model.removeListener('set', this._handleSet);
-    }
   }
 
   _start() {
