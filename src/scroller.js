@@ -250,30 +250,22 @@ export default class Scroller extends Observer {
     return this;
   }
 
+  _resolveStep() {
+    return this._step || this._model.get('step');
+  }
+
   down() {
-    const count = this._resolveCount();
-    const value = this._value() - count;
-    const valid = value > this._domain[0] - count &&
-      value < this._domain[1] + count;
+    const count = this._resolveCount() || this._resolveStep();
+    const value = Math.max(this._domain[0], this._value() - count);
 
-    if (valid) {
-      this._value(value);
-    }
-
-    return this;
+    return this._value(value);
   }
 
   up() {
-    const count = this._resolveCount();
-    const value = this._value() + count;
-    const valid = value > this._domain[0] - count &&
-      value < this._domain[1] + count;
+    const count = this._resolveCount() || this._resolveStep();
+    const value = Math.min(this._domain[1], this._value() + count);
 
-    if (valid) {
-      this._value(value);
-    }
-
-    return this;
+    return this._value(value);
   }
 
   _bindRoot() {
