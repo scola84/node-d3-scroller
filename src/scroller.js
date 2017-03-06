@@ -21,7 +21,6 @@ export default class Scroller extends Observer {
 
     this._domain = null;
     this._range = null;
-    this._step = null;
     this._ticks = false;
     this._debounced = null;
 
@@ -115,19 +114,10 @@ export default class Scroller extends Observer {
     this._domain = value;
     this._scale.domain(value);
 
-    if (this._model.get(this._name) > value[1]) {
-      this._model.set(this._name, value[1]);
+    if (this._model.get('offset') > value[1]) {
+      this._model.set('offset', value[1]);
     }
 
-    return this;
-  }
-
-  step(value = null) {
-    if (value === null) {
-      return this._step;
-    }
-
-    this._step = value;
     return this;
   }
 
@@ -245,39 +235,21 @@ export default class Scroller extends Observer {
     this._resizeTicks();
 
     this._set({
-      name: this._name,
-      value: this._model.get(this._name)
+      name: 'offset',
+      value: this._model.get('offset')
     });
 
     return this;
   }
 
   down() {
-    if (!this._step) {
-      return;
-    }
-
-    const value = this._model.get(this._name) - this._step;
-
-    if (value < this._domain[0] || value > this._domain[1]) {
-      return;
-    }
-
-    this._model.set(this._name, value);
+    this._step(-this._count());
+    return this;
   }
 
   up() {
-    if (!this._step) {
-      return;
-    }
-
-    const value = this._model.get(this._name) + this._step;
-
-    if (value < this._domain[0] || value > this._domain[1]) {
-      return;
-    }
-
-    this._model.set(this._name, value);
+    this._step(this._count());
+    return this;
   }
 
   _bindRoot() {
@@ -392,7 +364,7 @@ export default class Scroller extends Observer {
   _delta(delta) {
     delta *= this._orientation === 'x' ? 1 : -1;
 
-    if (this._step) {
+    if (this._model.has('count')) {
       if (delta < 0) {
         this.up();
       } else {
@@ -410,18 +382,29 @@ export default class Scroller extends Observer {
 
     const delta = this._orientation === 'x' ?
       event.deltaY : -event.deltaY;
-
-    const position = parseFloat(this._knob.style(this._positionProperty)) -
-      delta;
+    const value = this._knob.style(this._positionProperty);
+    const position = parseFloat(value) - delta;
 
     this._change(position, delta);
+  }
+
+  _step(change) {
+    const value = this._model.get('offset') + change;
+    const valid = value > this._domain[0] - this._count() &&
+      value < this._domain[1] + this._count();
+
+    if (valid) {
+      this._model.set('offset', value);
+    }
   }
 
   _change(position, delta) {
     let value = this._scale.invert(position);
 
-    if (this._step) {
-      value /= this._step;
+    if (this._model.has('count')) {
+      const count = this._count();
+
+      value = value / count;
 
       if (delta < 0) {
         value = Math.ceil(value);
@@ -431,27 +414,28 @@ export default class Scroller extends Observer {
         value = Math.round(value);
       }
 
-      value *= this._step;
+      value = value * count;
     }
 
     if (this._debounced) {
       this._debounced(() => {
-        this._model.set(this._name, value, 'scroller');
+        this._model.set('offset', value);
       });
     }
 
     this._set({
-      name: this._name,
+      name: 'offset',
       value
     });
   }
 
   _set(setEvent) {
-    const cancel = !this._domain ||
-      setEvent.name !== this._name ||
-      setEvent.scope === 'scroller';
+    if (setEvent.changed === false) {
+      return;
+    }
 
-    if (cancel) {
+    if (setEvent.name !== 'offset') {
+      this._setScale();
       return;
     }
 
@@ -460,6 +444,14 @@ export default class Scroller extends Observer {
     this._knob.style(this._positionProperty, position + 'px');
     this._knob.style('opacity', 1);
     this._mark.style(this._sizeProperty, position + 'px');
+  }
+
+  _setScale() {
+    this.scale([0, this._model.get('total') - this._count()]);
+  }
+
+  _count() {
+    return this._format(this._model.get('count'));
   }
 
   _resizeKnob() {
@@ -494,11 +486,15 @@ export default class Scroller extends Observer {
   }
 
   _resizeTicks() {
-    if (!this._domain || !this._step || this._ticks === false) {
+    const cancel = !this._domain ||
+      !this._model.has('count') ||
+      this._ticks === false;
+
+    if (cancel) {
       return;
     }
 
-    const data = range(this._domain[0], this._domain[1], this._step);
+    const data = range(this._domain[0], this._domain[1], this._count());
 
     data.push(this._domain[1]);
 
