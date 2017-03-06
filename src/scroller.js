@@ -27,6 +27,10 @@ export default class Scroller extends Observer {
     this._keyDelta = 1;
     this._scrolling = false;
 
+    this._step = 0;
+    this._count = 0;
+    this._total = 0;
+
     this._scale = scaleLinear()
       .clamp(true);
 
@@ -106,19 +110,14 @@ export default class Scroller extends Observer {
     return this._scrolling;
   }
 
-  scale(value = null) {
-    if (value === null) {
-      return this._scale;
-    }
+  count(value) {
+    this._count = value;
+    return this._setScale();
+  }
 
-    this._domain = value;
-    this._scale.domain(value);
-
-    if (this._model.get('offset') > value[1]) {
-      this._model.set('offset', value[1]);
-    }
-
-    return this;
+  total(value) {
+    this._total = value;
+    return this._setScale();
   }
 
   ticks(value = null) {
@@ -235,20 +234,45 @@ export default class Scroller extends Observer {
     this._resizeTicks();
 
     this._set({
-      name: 'offset',
-      value: this._model.get('offset')
+      name: this._name,
+      value: this._value()
     });
 
     return this;
   }
 
+  step(value = null) {
+    if (value === null) {
+      return this._step;
+    }
+
+    this._step = value;
+    return this;
+  }
+
   down() {
-    this._step(-this._count());
+    const count = this._resolveCount();
+    const value = this._value() - count;
+    const valid = value > this._domain[0] - count &&
+      value < this._domain[1] + count;
+
+    if (valid) {
+      this._value(value);
+    }
+
     return this;
   }
 
   up() {
-    this._step(this._count());
+    const count = this._resolveCount();
+    const value = this._value() + count;
+    const valid = value > this._domain[0] - count &&
+      value < this._domain[1] + count;
+
+    if (valid) {
+      this._value(value);
+    }
+
     return this;
   }
 
@@ -364,7 +388,7 @@ export default class Scroller extends Observer {
   _delta(delta) {
     delta *= this._orientation === 'x' ? 1 : -1;
 
-    if (this._model.has('count')) {
+    if (this._step) {
       if (delta < 0) {
         this.up();
       } else {
@@ -388,23 +412,11 @@ export default class Scroller extends Observer {
     this._change(position, delta);
   }
 
-  _step(change) {
-    const value = this._model.get('offset') + change;
-    const valid = value > this._domain[0] - this._count() &&
-      value < this._domain[1] + this._count();
-
-    if (valid) {
-      this._model.set('offset', value);
-    }
-  }
-
   _change(position, delta) {
     let value = this._scale.invert(position);
 
-    if (this._model.has('count')) {
-      const count = this._count();
-
-      value = value / count;
+    if (this._step) {
+      value = value / this._step;
 
       if (delta < 0) {
         value = Math.ceil(value);
@@ -414,17 +426,17 @@ export default class Scroller extends Observer {
         value = Math.round(value);
       }
 
-      value = value * count;
+      value = value * this._step;
     }
 
     if (this._debounced) {
       this._debounced(() => {
-        this._model.set('offset', value);
+        this._value(value);
       });
     }
 
     this._set({
-      name: 'offset',
+      name: this._name,
       value
     });
   }
@@ -434,7 +446,7 @@ export default class Scroller extends Observer {
       return;
     }
 
-    if (setEvent.name !== 'offset') {
+    if (setEvent.name !== this._name) {
       this._setScale();
       return;
     }
@@ -447,11 +459,31 @@ export default class Scroller extends Observer {
   }
 
   _setScale() {
-    this.scale([0, this._model.get('total') - this._count()]);
+    this._domain = [0, this._resolveTotal() - this._resolveCount()];
+    this._scale.domain(this._domain);
+
+    if (this._value() > this._domain[1]) {
+      this._value(this._domain[1]);
+    }
+
+    return this;
   }
 
-  _count() {
-    return this._format(this._model.get('count'));
+  _resolveCount() {
+    return this._format(this._count || this._model.get('count') || 0);
+  }
+
+  _resolveTotal() {
+    return this._total || this._model.get('total');
+  }
+
+  _value(value = null) {
+    if (value === null) {
+      return this._model.get(this._name);
+    }
+
+    this._model.set(this._name, value);
+    return this;
   }
 
   _resizeKnob() {
@@ -487,14 +519,14 @@ export default class Scroller extends Observer {
 
   _resizeTicks() {
     const cancel = !this._domain ||
-      !this._model.has('count') ||
+      !this._step ||
       this._ticks === false;
 
     if (cancel) {
       return;
     }
 
-    const data = range(this._domain[0], this._domain[1], this._count());
+    const data = range(this._domain[0], this._domain[1], this._step);
 
     data.push(this._domain[1]);
 
