@@ -250,20 +250,16 @@ export default class Scroller extends Observer {
     return this;
   }
 
-  _resolveStep() {
-    return this._step || this._model.get('step');
-  }
-
   down() {
-    const count = this._resolveCount() || this._resolveStep();
-    const value = Math.max(this._domain[0], this._value() - count);
+    const amount = this._resolveStep() || this._resolveCount();
+    const value = Math.max(this._domain[0], this._value() - amount);
 
     return this._value(value);
   }
 
   up() {
-    const count = this._resolveCount() || this._resolveStep();
-    const value = Math.min(this._domain[1], this._value() + count);
+    const amount = this._resolveStep() || this._resolveCount();
+    const value = Math.min(this._domain[1], this._value() + amount);
 
     return this._value(value);
   }
@@ -423,7 +419,7 @@ export default class Scroller extends Observer {
 
     if (this._debounced) {
       this._debounced(() => {
-        this._value(value);
+        this._value(value, 'debounce');
       });
     }
 
@@ -434,7 +430,10 @@ export default class Scroller extends Observer {
   }
 
   _set(setEvent) {
-    if (setEvent.changed === false) {
+    const cancel = setEvent.changed === false ||
+      setEvent.scope === 'debounce';
+
+    if (cancel) {
       return;
     }
 
@@ -451,7 +450,11 @@ export default class Scroller extends Observer {
   }
 
   _setScale() {
-    this._domain = [0, this._resolveTotal() - this._resolveCount()];
+    const total = this._resolveTotal();
+    const count = this._resolveCount();
+    const max = Math.ceil((total - count) / count);
+
+    this._domain = [0, max];
     this._scale.domain(this._domain);
 
     if (this._value() > this._domain[1]) {
@@ -462,19 +465,23 @@ export default class Scroller extends Observer {
   }
 
   _resolveCount() {
-    return this._format(this._count || this._model.get('count') || 0);
+    return this._format(this._count || this._model.get('count') || 1);
+  }
+
+  _resolveStep() {
+    return this._step || this._model.get('step');
   }
 
   _resolveTotal() {
     return this._total || this._model.get('total');
   }
 
-  _value(value = null) {
+  _value(value = null, scope = null) {
     if (value === null) {
-      return this._model.get(this._name);
+      return this._model.get(this._name) / this._resolveCount();
     }
 
-    this._model.set(this._name, value);
+    this._model.set(this._name, value * this._resolveCount(), scope);
     return this;
   }
 
