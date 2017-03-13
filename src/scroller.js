@@ -452,7 +452,7 @@ export default class Scroller extends Observer {
   _setScale() {
     const total = this._resolveTotal();
     const count = this._resolveCount();
-    const max = Math.ceil((total - count) / count);
+    const max = Math.max(0, Math.ceil((total - count) / count));
 
     this._domain = [0, max];
     this._scale.domain(this._domain);
