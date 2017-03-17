@@ -235,7 +235,7 @@ export default class Scroller extends Observer {
 
     this._set({
       name: this._name,
-      value: this._value()
+      value: this._value() * this._resolveCount()
     });
 
     return this;
@@ -425,7 +425,7 @@ export default class Scroller extends Observer {
 
     this._set({
       name: this._name,
-      value
+      value: value * this._resolveCount()
     });
   }
 
@@ -442,7 +442,8 @@ export default class Scroller extends Observer {
       return;
     }
 
-    const position = this._scale(setEvent.value);
+    const value = setEvent.value / this._resolveCount();
+    const position = this._scale(value);
 
     this._knob.style(this._positionProperty, position + 'px');
     this._knob.style('opacity', 1);
