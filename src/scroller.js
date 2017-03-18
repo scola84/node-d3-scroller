@@ -21,8 +21,8 @@ export default class Scroller extends Observer {
     this._positionProperty = null;
     this._sizeProperty = null;
 
-    this._domain = null;
-    this._range = null;
+    this._domain = [0, 0];
+    this._range = [0, 0];
     this._ticks = false;
     this._debounced = null;
 
@@ -34,7 +34,9 @@ export default class Scroller extends Observer {
     this._total = 0;
 
     this._scale = scaleLinear()
-      .clamp(true);
+      .clamp(true)
+      .domain(this._domain)
+      .range(this._range);
 
     this._root = select('body')
       .append('div')
@@ -394,12 +396,11 @@ export default class Scroller extends Observer {
   _wheel() {
     event.preventDefault();
 
-    const delta = this._orientation === 'x' ?
-      event.deltaY : -event.deltaY;
-    const value = this._knob.style(this._positionProperty);
-    const position = parseFloat(value) - delta;
-
-    this._change(position, delta);
+    if (event.deltaY > 0) {
+      this.up();
+    } else {
+      this.down();
+    }
   }
 
   _change(position, delta) {
