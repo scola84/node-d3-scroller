@@ -15,6 +15,8 @@ export default class Scroller extends Observer {
   constructor() {
     super();
 
+    this._name = 'offset';
+
     this._orientation = null;
     this._positionProperty = null;
     this._sizeProperty = null;
