@@ -470,11 +470,11 @@ export default class Scroller extends Observer {
   }
 
   _resolveStep() {
-    return this._step || this._model.get('step');
+    return this._step || this._model.get('step') || 1;
   }
 
   _resolveTotal() {
-    return this._total || this._model.get('total');
+    return this._total || this._model.get('total') || 0;
   }
 
   _value(value = null, scope = null) {
