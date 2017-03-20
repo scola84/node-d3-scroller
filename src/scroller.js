@@ -453,14 +453,6 @@ export default class Scroller extends Observer {
   }
 
   _set(setEvent) {
-    const cancel = setEvent.changed === false ||
-      setEvent.scope === 'model' ||
-      setEvent.scope === 'debounce';
-
-    if (cancel) {
-      return;
-    }
-
     if (setEvent.name === 'step') {
       this.step(setEvent.value);
       return;
@@ -473,6 +465,15 @@ export default class Scroller extends Observer {
 
     if (setEvent.name === 'total') {
       this.total(setEvent.value);
+      return;
+    }
+
+    const cancel = setEvent.changed === false ||
+      setEvent.scope === 'model' ||
+      setEvent.scope === 'debounce' ||
+      setEvent.name !== this._name;
+
+    if (cancel) {
       return;
     }
 
