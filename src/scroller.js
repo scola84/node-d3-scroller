@@ -30,6 +30,7 @@ export default class Scroller extends Observer {
     this._ticks = false;
     this._debounced = null;
 
+    this._disabled = false;
     this._keyDelta = 1;
     this._scrolling = false;
 
@@ -82,7 +83,7 @@ export default class Scroller extends Observer {
         'border': '1px solid transparent',
         'border-radius': '50%',
         'box-shadow': '0 1px 5px #AAA',
-        'cursor': 'pointer',
+        'cursor': 'inherit',
         'margin': 0,
         'opacity': 0,
         'padding': 0,
@@ -325,17 +326,31 @@ export default class Scroller extends Observer {
   }
 
   _start() {
+    this._disabled = this._root.select('button:disabled').size() === 1;
+
+    if (this._disabled === true) {
+      return;
+    }
+
     this._scrolling = true;
     this._root.dispatch('start');
     this._drag();
   }
 
   _drag() {
+    if (this._disabled === true) {
+      return;
+    }
+
     const position = event[this._orientation];
     this._change(position, 0);
   }
 
   _end() {
+    if (this._disabled === true) {
+      return;
+    }
+
     this._scrolling = false;
     this._root.dispatch('end');
   }
