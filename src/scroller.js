@@ -157,6 +157,17 @@ export default class Scroller extends Observer {
     return this;
   }
 
+  disabled(value = null) {
+    if (value === null) {
+      return this._disabled;
+    }
+
+    this._disabled = value;
+    this._root.classed('disabled', value);
+
+    return this;
+  }
+
   tabindex(value = null) {
     if (value === null) {
       return this._knob.attr('tabindex');
@@ -326,8 +337,6 @@ export default class Scroller extends Observer {
   }
 
   _start() {
-    this._disabled = this._root.select('button:disabled').size() === 1;
-
     if (this._disabled === true) {
       return;
     }
