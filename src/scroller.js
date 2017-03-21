@@ -119,10 +119,11 @@ export default class Scroller extends Observer {
       return this._count;
     }
 
+    this._value = this._value * this._count;
     this._count = value;
     this._value = this._value / this._count;
-    this._setScale();
 
+    this._setScale();
     return this;
   }
 
