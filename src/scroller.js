@@ -516,8 +516,9 @@ export default class Scroller extends Observer {
     }
 
     const min = 0;
-    const max = Math.max(0,
-      Math.ceil((this._total - this._count) / this._count));
+    const max = this._count > 1 ?
+      Math.max(0, Math.ceil((this._total - this._count) / this._count)) :
+      this._total;
 
     this._domain = [min, max];
     this._scale.domain(this._domain);
