@@ -15,15 +15,13 @@ export default class Scroller extends Observer {
   constructor() {
     super();
 
-    this._name = 'offset';
-
     this._orientation = null;
     this._positionProperty = null;
     this._sizeProperty = null;
 
     this._count = 1;
     this._step = 0;
-    this._total = -1;
+    this._max = -1;
 
     this._domain = [0, 0];
     this._range = [0, 0];
@@ -97,6 +95,8 @@ export default class Scroller extends Observer {
   }
 
   destroy() {
+    super.destroy();
+
     this._unbindRoot();
     this._unbindKnob();
 
@@ -121,19 +121,19 @@ export default class Scroller extends Observer {
     }
 
     this._value = this._value * this._count;
-    this._count = value;
+    this._count = this._format(value);
     this._value = this._value / this._count;
 
     this._setScale();
     return this;
   }
 
-  total(value = null) {
+  max(value = null) {
     if (value === null) {
-      return this._total;
+      return this._max;
     }
 
-    this._total = value;
+    this._max = value;
     this._setScale();
 
     return this;
@@ -478,21 +478,6 @@ export default class Scroller extends Observer {
   }
 
   _set(setEvent) {
-    if (setEvent.name === 'step') {
-      this.step(setEvent.value);
-      return;
-    }
-
-    if (setEvent.name === 'count') {
-      this.count(this._format(setEvent.value));
-      return;
-    }
-
-    if (setEvent.name === 'total') {
-      this.total(setEvent.value);
-      return;
-    }
-
     const cancel = setEvent.changed === false ||
       setEvent.scope === 'model' ||
       setEvent.scope === 'debounce' ||
@@ -511,14 +496,14 @@ export default class Scroller extends Observer {
   }
 
   _setScale() {
-    if (this._total === -1) {
+    if (this._max === -1) {
       return;
     }
 
     const min = 0;
     const max = this._count > 1 ?
-      Math.max(0, Math.ceil((this._total - this._count) / this._count)) :
-      this._total;
+      Math.max(0, Math.ceil((this._max - this._count) / this._count)) :
+      this._max;
 
     this._domain = [min, max];
     this._scale.domain(this._domain);
