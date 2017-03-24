@@ -467,7 +467,7 @@ export default class Scroller extends Observer {
 
     if (this._debounced) {
       this._debounced(() => {
-        this._model.set(this._name, value, 'debounce');
+        this._model.set(this._name, value);
       });
     }
 
@@ -479,8 +479,6 @@ export default class Scroller extends Observer {
 
   _set(setEvent) {
     const cancel = setEvent.changed === false ||
-      setEvent.scope === 'model' ||
-      setEvent.scope === 'debounce' ||
       setEvent.name !== this._name;
 
     if (cancel) {
