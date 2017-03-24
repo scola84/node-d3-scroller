@@ -27,6 +27,7 @@ export default class Scroller extends Observer {
     this._range = [0, 0];
     this._ticks = false;
     this._debounced = null;
+    this._resizer = null;
 
     this._disabled = false;
     this._keyDelta = 1;
@@ -99,6 +100,7 @@ export default class Scroller extends Observer {
 
     this._unbindRoot();
     this._unbindKnob();
+    this._unbindResizer();
 
     this._deleteDebounce();
 
@@ -187,6 +189,17 @@ export default class Scroller extends Observer {
     }
 
     return this._insertDebounce(delay);
+  }
+
+  resizer(value = null) {
+    if (value === null) {
+      return this._resizer;
+    }
+
+    this._resizer = value;
+    this._bindResizer();
+
+    return this;
   }
 
   line(action = true) {
@@ -334,6 +347,20 @@ export default class Scroller extends Observer {
   _unbindKnob() {
     this._knob.on('keydown', null);
     this._knob.on('keyup', null);
+  }
+
+  _bindResizer() {
+    if (this._resizer) {
+      this._resizer.root().on('resize.scola-scroller', () => {
+        this.resize();
+      });
+    }
+  }
+
+  _unbindResizer() {
+    if (this._resizer) {
+      this._resizer.root().on('resize.scola-scroller', null);
+    }
   }
 
   _start() {
