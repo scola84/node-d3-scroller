@@ -203,8 +203,8 @@ export default class Scroller extends Observer {
   }
 
   line(action = true) {
-    this._line
-      .style('display', action ? 'initial' : 'none');
+    const display = action === true ? 'initial' : 'none';
+    this._line.style('display', display);
 
     return this;
   }
@@ -278,7 +278,7 @@ export default class Scroller extends Observer {
   }
 
   resize() {
-    if (!this._model) {
+    if (this._model === null) {
       return this;
     }
 
@@ -447,7 +447,7 @@ export default class Scroller extends Observer {
   _delta(delta) {
     delta *= this._orientation === 'x' ? 1 : -1;
 
-    if (this._step) {
+    if (this._step > 0) {
       if (delta < 0) {
         this.up();
       } else {
@@ -463,6 +463,10 @@ export default class Scroller extends Observer {
   _wheel() {
     event.preventDefault();
 
+    if (this._disabled === true) {
+      return;
+    }
+
     const delta = this._orientation === 'x' ?
       event.deltaY : -event.deltaY;
 
@@ -476,7 +480,7 @@ export default class Scroller extends Observer {
   _change(position, delta) {
     let value = this._scale.invert(position);
 
-    if (this._step) {
+    if (this._step > 0) {
       value = value / this._step;
 
       if (delta < 0) {
@@ -505,10 +509,11 @@ export default class Scroller extends Observer {
   }
 
   _set(setEvent) {
-    const cancel = setEvent.changed === false ||
+    const cancel =
+      setEvent.changed === false ||
       setEvent.name !== this._name;
 
-    if (cancel) {
+    if (cancel === true) {
       return;
     }
 
@@ -572,11 +577,12 @@ export default class Scroller extends Observer {
   }
 
   _resizeTicks() {
-    const cancel = !this._domain ||
+    const cancel =
+      this._domain === null ||
       this._step === 0 ||
       this._ticks === false;
 
-    if (cancel) {
+    if (cancel === true) {
       return;
     }
 
