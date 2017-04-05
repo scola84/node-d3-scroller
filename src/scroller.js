@@ -509,11 +509,7 @@ export default class Scroller extends Observer {
   }
 
   _set(setEvent) {
-    const cancel =
-      setEvent.changed === false ||
-      setEvent.name !== this._name;
-
-    if (cancel === true) {
+    if (setEvent.name !== this._name) {
       return;
     }
 
