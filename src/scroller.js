@@ -542,8 +542,8 @@ export default class Scroller extends Observer {
   }
 
   _resizeKnob() {
-    const height = parseFloat(this._root.style('height'));
-    const width = parseFloat(this._root.style('width'));
+    const height = this._root.height();
+    const width = this._root.width();
 
     let areaSize = width;
     let knobSize = height;
