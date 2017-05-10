@@ -203,7 +203,7 @@ export default class Scroller extends Observer {
   }
 
   line(action = true) {
-    const display = action === true ? 'initial' : 'none';
+    const display = action === true ? null : 'none';
     this._line.style('display', display);
 
     return this;
@@ -217,7 +217,7 @@ export default class Scroller extends Observer {
     this._root.styles({
       'align-items': 'center',
       height,
-      'justify-content': 'initial',
+      'justify-content': null,
       'width': '100%'
     });
 
@@ -228,7 +228,7 @@ export default class Scroller extends Observer {
 
     this._mark.styles({
       'height': '100%',
-      'width': 'initial'
+      'width': null
     });
 
     this._knob.styles({
@@ -249,7 +249,7 @@ export default class Scroller extends Observer {
     this._sizeProperty = 'height';
 
     this._root.styles({
-      'align-items': 'initial',
+      'align-items': null,
       'height': '100%',
       'justify-content': 'center',
       width
@@ -261,7 +261,7 @@ export default class Scroller extends Observer {
     });
 
     this._mark.styles({
-      'height': 'initial',
+      'height': null,
       'width': '100%'
     });
 
