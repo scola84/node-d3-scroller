@@ -399,7 +399,7 @@ export default class Scroller extends Observer {
     let delta = 0;
     let arrow = false;
 
-    const position = parseFloat(this._knob.style(this._positionProperty));
+    const position = this._knob.computedStyle(this._positionProperty);
 
     [delta, arrow] = this._deltaArrow(event.keyCode);
 
@@ -425,7 +425,7 @@ export default class Scroller extends Observer {
     let delta = 0;
     let arrow = false;
 
-    const size = parseFloat(this._root.style(this._sizeProperty));
+    const size = this._root.computedStyle(this._sizeProperty);
 
     if (keyCode === 40) {
       delta = this._keyDelta;
@@ -542,8 +542,8 @@ export default class Scroller extends Observer {
   }
 
   _resizeKnob() {
-    const height = this._root.height();
-    const width = this._root.width();
+    const height = this._root.boundingRect('height');
+    const width = this._root.boundingRect('width');
 
     let areaSize = width;
     let knobSize = height;
