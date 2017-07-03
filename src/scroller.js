@@ -20,6 +20,7 @@ export default class Scroller extends Observer {
     this._sizeProperty = null;
 
     this._count = 1;
+    this._grow = false;
     this._step = 0;
     this._max = -1;
 
@@ -127,6 +128,15 @@ export default class Scroller extends Observer {
     this._value = this._value / this._count;
 
     this._setScale();
+    return this;
+  }
+
+  grow(value = null) {
+    if (value === null) {
+      return this._grow;
+    }
+
+    this._grow = value;
     return this;
   }
 
@@ -478,6 +488,9 @@ export default class Scroller extends Observer {
   }
 
   _change(position, delta) {
+    position = position +
+      (this._knob.computedStyle(this._sizeProperty) / 2);
+
     let value = this._scale.invert(position);
 
     if (this._step > 0) {
@@ -545,30 +558,43 @@ export default class Scroller extends Observer {
     const height = this._root.boundingRect('height');
     const width = this._root.boundingRect('width');
 
-    let areaSize = width;
-    let knobSize = height;
+    let knobHeight = height;
+    let knobWidth = this._grow === true ?
+      Math.max(32, width / Math.ceil(this._max / this._count)) :
+      height;
 
-    let margin = knobSize / 2;
-    let marginLeft = margin;
+    let marginLeft = knobWidth;
     let marginTop = 0;
 
-    if (this._orientation === 'y') {
-      areaSize = height;
-      knobSize = width;
+    let radius = height / 2;
 
-      margin = knobSize / 2;
+    let rangeBegin = knobWidth;
+    let rangeEnd = width;
+
+    if (this._orientation === 'y') {
+      knobWidth = width;
+      knobHeight = this._grow === true ?
+        Math.max(32, height / Math.ceil(this._max / this._count)) :
+        width;
+
       marginLeft = 0;
-      marginTop = margin;
+      marginTop = knobHeight;
+
+      radius = width / 2;
+
+      rangeBegin = knobHeight;
+      rangeEnd = height;
     }
 
-    this._range = [margin, areaSize - margin];
+    this._range = [rangeBegin, rangeEnd];
     this._scale.range(this._range);
 
     this._knob.styles({
-      'width': knobSize + 'px',
-      'height': knobSize + 'px',
+      'border-radius': radius + 'px',
+      'height': knobHeight + 'px',
       'margin-left': -marginLeft + 'px',
-      'margin-top': -marginTop + 'px'
+      'margin-top': -marginTop + 'px',
+      'width': knobWidth + 'px'
     });
   }
 
@@ -606,7 +632,9 @@ export default class Scroller extends Observer {
         'width': '1px'
       })
       .style(this._positionProperty, (datum) => {
-        return this._scale(datum) + 'px';
+        return this._scale(datum) -
+          (this._knob.computedStyle(this._sizeProperty) / 2) +
+          'px';
       });
   }
 
