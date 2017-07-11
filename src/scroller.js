@@ -319,6 +319,23 @@ export default class Scroller extends Observer {
     return this;
   }
 
+  wheel(wheelEvent) {
+    wheelEvent.preventDefault();
+
+    if (this._disabled === true) {
+      return;
+    }
+
+    const delta = this._orientation === 'x' ?
+      wheelEvent.deltaY : -wheelEvent.deltaY;
+
+    if (delta < 0) {
+      this.up();
+    } else {
+      this.down();
+    }
+  }
+
   _bindRoot() {
     this._gesture = this._root
       .gesture()
@@ -336,7 +353,10 @@ export default class Scroller extends Observer {
       .on('end', () => this._end());
 
     this._root.call(this._dragger);
-    this._root.on('wheel.scola-list', () => this._wheel());
+
+    this._root.on('wheel.scola-list', () => {
+      this.wheel(event);
+    });
   }
 
   _unbindRoot() {
@@ -468,23 +488,6 @@ export default class Scroller extends Observer {
     }
 
     return delta;
-  }
-
-  _wheel() {
-    event.preventDefault();
-
-    if (this._disabled === true) {
-      return;
-    }
-
-    const delta = this._orientation === 'x' ?
-      event.deltaY : -event.deltaY;
-
-    if (delta < 0) {
-      this.up();
-    } else {
-      this.down();
-    }
   }
 
   _change(position, delta) {
