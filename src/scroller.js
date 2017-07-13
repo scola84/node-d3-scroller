@@ -114,6 +114,18 @@ export default class Scroller extends Observer {
     return this._root;
   }
 
+  line() {
+    return this._line;
+  }
+
+  mark() {
+    return this._mark;
+  }
+
+  knob() {
+    return this._knob;
+  }
+
   scrolling() {
     return this._scrolling;
   }
@@ -177,15 +189,6 @@ export default class Scroller extends Observer {
     this._disabled = value;
     this._root.classed('disabled', value);
 
-    return this;
-  }
-
-  tabindex(value = null) {
-    if (value === null) {
-      return this._knob.attr('tabindex');
-    }
-
-    this._knob.attr('tabindex', value);
     return this;
   }
 
