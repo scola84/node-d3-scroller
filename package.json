@@ -1,6 +1,6 @@
 {
   "name": "@scola/d3-scroller",
-  "version": "2.0.5",
+  "version": "3.0.0",
   "description": "Scroller",
   "repository": "github:scola84/node-d3-scroller",
   "author": "M.C. van den Boogaart <scola@kvdb.name>",
